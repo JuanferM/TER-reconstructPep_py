@@ -58,24 +58,24 @@ counter = 0
 for i in code:
     for j in code:
         for k in code:
-            for l in code:
-                for m in code:
-                    for n in code:
-                        for o in code:
-                            for p in code:
-                                counter += 1
-                                word = "".join(sorted(i+j+k+l+m+n+o+p))
-                                if word != "" and word not in comb:
-                                    comb[word] = True
-                                    s = 0
-                                    for c in word:
-                                        if c != '':
-                                            s += mono[c]
-                                    s = truncate(s, 2)
-                                    if s in mass:
-                                        mass[s].append(word)
-                                    else:
-                                        mass[s] = [word]
+            # for l in code:
+            #     for m in code:
+            #         for n in code:
+            #             for o in code:
+            #                 for p in code:
+            counter += 1
+            word = "".join(sorted(i+j+k))#+l+m+n+o+p))
+            if word != "" and word not in comb:
+                comb[word] = True
+                s = 0
+                for c in word:
+                    if c != '':
+                        s += mono[c]
+                s = truncate(s, 2)
+                if s in mass:
+                    mass[s].append(word)
+                else:
+                    mass[s] = [word]
 
 print("Done.\nWriting to csv...")
 tocsv(mass, "table.csv")
