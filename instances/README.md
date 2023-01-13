@@ -10,6 +10,7 @@ The format of _bait10000.dat_ is as follows :
     - the following **n** lines are the baitModels associated to the bait
 
 Here are the first 9 lines of the file that may help you undestand its structure :
+```
 10000
 VCASIAQK 6
 V[160.03]ASIA[128.06]K
@@ -19,3 +20,4 @@ V[47.04]QA[71.97]IAQK
 VC[342.19]QK
 VCASI[199.09]K
 GGSGATIIMVVQR 5
+```
