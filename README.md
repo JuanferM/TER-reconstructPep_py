@@ -1,2 +1,2 @@
-# TER-reconstructPep_cpp
-Algorithms to reconstruct peptide sequences in C++
+# TER-reconstructPep_julia
+Algorithms to reconstruct peptide sequences in Julia
