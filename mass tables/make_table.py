@@ -1,7 +1,8 @@
 import math
+import time as T
 
 code = ["", "A", "R", "N", "D", "C", "E", "Q", "G", "H", "I", "L",
-        "K", "M", "F", "P", "S", "T", "W", "Y", "V", "O", "U"]
+        "K", "M", "F", "P", "S", "T", "W", "Y", "V", "U"]#"O", "U"]
 
 mono = {"A" : 71.037113805,
         "R" : 156.10111105,
@@ -23,7 +24,7 @@ mono = {"A" : 71.037113805,
         "W" : 186.07931298,
         "Y" : 163.063328575,
         "V" : 99.068413945,
-        "O" : 237.147726925,
+#        "O" : 237.147726925,
         "U" : 150.953633405
         }
 
@@ -55,28 +56,31 @@ def tocsv(dico, file):
 
 print("Computing...")
 counter = 0
+a = T.time()
 for i in code:
     for j in code:
         for k in code:
-            # for l in code:
-            #     for m in code:
-            #         for n in code:
-            #             for o in code:
-            #                 for p in code:
-            counter += 1
-            word = "".join(sorted(i+j+k))#+l+m+n+o+p))
-            if word != "" and word not in comb:
-                comb[word] = True
-                s = 0
-                for c in word:
-                    if c != '':
-                        s += mono[c]
-                s = truncate(s, 2)
-                if s in mass:
-                    mass[s].append(word)
-                else:
-                    mass[s] = [word]
+            for l in code:
+                for m in code:
+                    for n in code:
+                        for o in code:
+                            for p in code:
+                                counter += 1
+                                word = "".join(sorted(i+j+k+l+m+n+o+p))
+                                if word != "" and word not in comb:
+                                    comb[word] = True
+                                    s = 0
+                                    for c in word:
+                                        if c != '':
+                                            s += mono[c]
+                                    s = truncate(s, 2)
+                                    if s in mass:
+                                        mass[s].append(word)
+                                    else:
+                                        mass[s] = [word]
 
 print("Done.\nWriting to csv...")
 tocsv(mass, "table.csv")
 print("Done.")
+b = T.time()
+print(b-a)
