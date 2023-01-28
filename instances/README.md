@@ -1,8 +1,10 @@
-_bait10000.dat_ is a collection of instances generated from the csv file
-_specOMS_test_for_glob_sample_10000_output_baitModel.csv_ (found in the
+# Collection of instances
+
+*bait10000.txt* is a collection of instances generated from the csv file
+*specOMS_test_for_glob_sample_10000_output_baitModel.csv* (found in the
 directory `csv`).
 
-The format of _bait10000.dat_ is as follows :
+The format of _bait10000.txt_ is as follows :
 * the first line is the number of baits
 * for each bait we have :
     - the name of the bait
@@ -21,3 +23,7 @@ VC[342.19]QK
 VCASI[199.09]K
 GGSGATIIMVVQR 5
 ```
+
+# Script to check mass
+checkMass.py takes the path to a collection and check if all baitModels
+assigned to a bait have the same mass.
