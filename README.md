@@ -1,2 +1,2 @@
-# TER-reconstructPep_julia
-Algorithms to reconstruct peptide sequences in Julia
+# TER-reconstructPep_py
+Algorithms to reconstruct peptide sequences in Python
