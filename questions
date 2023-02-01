@@ -1,5 +1,0 @@
-Est-ce que les baitModels peuvent être de masses différentes?
-Implémenter ou utiliser algorithmes d'alignement (clustalW, muscle)
-Est-ce qu'il faudrait représenter les gaps ?
-Comment représenter les gaps ?
-Remplacer gaps par maximum de lettres séquence correspondante ?
