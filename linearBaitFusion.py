@@ -9,7 +9,7 @@ if len(sys.argv) != 3:
  and the path to the mass table.')
 infilename, massfilename = sys.argv[1], sys.argv[2]
 
-uncertainty, trace = 0.01, 1
+uncertainty, trace = 0.01, 1.0
 valid, probation, invalid = 2, 1, 0
 solvedbaits, charcount, totalchar = 0, 0, 0
 nBait, minCount, maxCount, moyCount = 0, 0, 0, 0
@@ -132,6 +132,7 @@ for bait, data in baits.items():
         candidate = "_"
         candidates, scoresA, scoresB = {}, {}, {}
         for i in range(lenBaitModels):
+            frommass = False
             if 0 <= indices[i] < len(baitModels[i]) and validation[i]:
                 c = baitModels[i][indices[i]]
 
@@ -147,7 +148,7 @@ for bait, data in baits.items():
                     if ncombi == 1:
                         combi = massTable[str(abs(j))][0]
                         if len(combi) == 1: # excess mass is an amino acid
-                            c = combi[0]
+                            c, frommass = combi[0], True
                 else:
                     masses[i] = 0.0
 
@@ -165,7 +166,7 @@ for bait, data in baits.items():
                 if c not in "_[]":
                     if c not in candidates:
                         candidates[c], scoresA[c], scoresB[c] = 0, 0, 0
-                    candidates[c] += 1
+                    candidates[c] += 0.5 if frommass else 1
                     scoresA[c] += validation[i]
                     scoresB[c] += scoreBM(baitModelsStats[i])
 
@@ -180,7 +181,9 @@ for bait, data in baits.items():
                 elif scoresB[k] > scoresB[candidate]:
                     candidate, mostpresent = k, v
                 else:
-                    doubt = True
+                    sameA = scoresA[k] > scoresA[candidate]
+                    sameB = scoresB[k] > scoresB[candidate]
+                    doubt = sameA and sameB
         # No clear candidate
         if candidate not in mono or mostpresent == 0 or doubt:
             keepgoing = False
@@ -229,7 +232,6 @@ for bait, data in baits.items():
     charcount += numMatch
     totalchar += len(bait)
     print("Fusion : ", fusedBait)
-    # break
 # --------------------------------------------
 
 # ---------------- RESULTS -------------------
