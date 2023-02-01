@@ -5,7 +5,8 @@ from ctypes import ArgumentError
 
 if len(sys.argv) < 3 and len(sys.argv) > 4:
     raise FileNotFoundError('File not found. Please provide the csv filename\
- and the output instance name as arguments.')
+ and the output instance name as arguments. Also provide the path to the mass table if you\
+ wish to compute all the stats.')
 
 uncertainty = 0.01
 AA = "ARNDCEQGHILKMFPSTWYVCU"
@@ -123,7 +124,7 @@ for bait, L in baits.items():
                     i, mass, ncombi = 0, float(currentMass), -1
                     baitMass += mass
                     while i < 3 and i != -1:
-                        mass = mass + (-1)*(i%2)*uncertainty*i
+                        mass += (-1)*(i%2)*uncertainty*i
                         i += 1
                         if str(abs(mass)) in massTable:
                             i, ncombi = -1, len(massTable[str(abs(mass))])
@@ -153,6 +154,7 @@ moyCount /= len(baits)
 print("Done\n")
 # ---------------------------------------------
 
+# ------------- WRITE STATS FILE --------------
 print("Writing stats file...")
 with open("stats_"+outfilename, 'w') as file:
     # write number of baits; min, max and mean number of baitModels
@@ -171,3 +173,4 @@ with open("stats_"+outfilename, 'w') as file:
             # write baitModel, bait mass, longest stretch, number of mass, ...
             file.write(" ".join(stats)+"\n")
 print("Done\n")
+# ---------------------------------------------

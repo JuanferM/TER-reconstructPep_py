@@ -26,12 +26,12 @@ with open(infilename, 'r') as file:
         baitStats = (float(meanMass), float(sdMass))
         baitModels, baitModelsStats = [], []
         for i in range(i+1, i+1+nBaitModel):
-            baitModel, baitMass, stretch, nMass, corMass, ambMass, unkMass = rows[i].split()
+            baitModel, baitMass, LS, nMass, GSC, GMC, GUM = rows[i].split()
             if len(baitModel) > baitPrintLength:
                 baitModel = baitModel[:baitPrintLength]+"..."
             baitModels.append(baitModel)
             st = [float(baitMass)]
-            st = st + list(map(int, [stretch, nMass, corMass, ambMass, unkMass]))
+            st = st + list(map(int, [LS, nMass, GSC, GMC, GUM]))
             baitModelsStats.append(st)
         i += 1
         baits[bait] = (baitModels, baitStats, baitModelsStats)
