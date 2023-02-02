@@ -123,7 +123,7 @@ for bait, data in baits.items():
     masses = [0.0 for _ in range(lenBaitModels)]
     indices = [0 for _ in range(lenBaitModels)]
     validation = [valid for _ in range(lenBaitModels)]
-    # if bait != "GGSGATIIMVVQR":
+    # if bait != "HSSVGSVIAK":
     #     continue
     print("\nBait   : ", bait)
 
@@ -132,9 +132,21 @@ for bait, data in baits.items():
         candidate = "_"
         candidates, scoresA, scoresB = {}, {}, {}
         for i in range(lenBaitModels):
-            frommass = False
+            frommass, c = False, "_"
+
             if 0 <= indices[i] < len(baitModels[i]) and validation[i]:
                 c = baitModels[i][indices[i]]
+
+                # check if not mass
+                if c == '[':
+                    indices[i] += 1
+                    currentMass, c = "", baitModels[i][indices[i]]
+                    while c != ']' and c in NUMS:
+                        currentMass += c
+                        indices[i] += 1
+                        c = baitModels[i][indices[i]]
+                    c = '_'
+                    masses[i] += truncate(float(currentMass), 2)
 
                 # If there is enough excess mass from previous iteration
                 if abs(masses[i]) >= trace:
@@ -152,23 +164,12 @@ for bait, data in baits.items():
                 else:
                     masses[i] = 0.0
 
-                # check if not mass
-                if c == '[':
-                    indices[i] += 1
-                    currentMass, c = "", baitModels[i][indices[i]]
-                    while c != ']' and c in NUMS:
-                        currentMass += c
-                        indices[i] += 1
-                        c = baitModels[i][indices[i]]
-                    c = '_'
-                    masses[i] += truncate(float(currentMass), 2)
-
-                if c not in "_[]":
-                    if c not in candidates:
-                        candidates[c], scoresA[c], scoresB[c] = 0, 0, 0
-                    candidates[c] += 0.5 if frommass else 1
-                    scoresA[c] += validation[i]
-                    scoresB[c] += scoreBM(baitModelsStats[i])
+            if c not in "_[]":
+                if c not in candidates:
+                    candidates[c], scoresA[c], scoresB[c] = 0, 0, 0
+                candidates[c] += 0.25 if frommass else 1
+                scoresA[c] += validation[i]
+                scoresB[c] += scoreBM(baitModelsStats[i])
 
         mostpresent, doubt = 0, True
         for k, v in candidates.items():
