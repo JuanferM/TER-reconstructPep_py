@@ -1,6 +1,7 @@
 import csv
 import sys
 import pandas as pd
+import matplotlib.pyplot as plt
 from math import exp, trunc
 from ctypes import ArgumentError
 
@@ -9,10 +10,18 @@ if len(sys.argv) != 3:
  and the path to the mass table.')
 infilename, massfilename = sys.argv[1], sys.argv[2]
 
+# ---------------- PARAMETERS -----------------
+minimumNumBaits = 1
+maximumNumBaits = float('inf') # included
 uncertainty, trace = 0.01, 1.0
-valid, probation, invalid = 2, 1, 0
-solvedbaits, charcount, totalchar = 0, 0, 0
-nBait, minCount, maxCount, moyCount = 0, 0, 0, 0
+valid, probation, invalid = 4, 1, 0
+onlythisbait = ""
+# ---------------------------------------------
+
+histo = {}
+numBait = 0
+solvedbaits, stopcount, charcount, totalchar = 0, 0, 0, 0
+nBait, nBaitOne, massDispCount, minCount, maxCount, moyCount = 0, 0, 0, 0, 0, 0
 baits, massTable = {}, {}
 stopAA = "KR"
 NUMS = "-.0123456789"
@@ -74,9 +83,10 @@ def scoreBM(stats):
 print("Reading stats file...")
 with open(infilename, 'r') as file:
     i, rows = 1, file.read().split('\n')
-    nBait, minCount, maxCount, moyCount = rows[0].split()
+    nBait, nBaitOne, massDispCount, minCount, maxCount, moyCount = rows[0].split()
     moyCount = float(moyCount)
-    nBait, minCount, maxCount = map(int, (nBait, minCount, maxCount))
+    t = (nBait, nBaitOne, massDispCount, minCount, maxCount)
+    nBait, nBaitOne, massDispCount, minCount, maxCount = map(int, t)
     while i < len(rows)-1:
         bait, nBaitModel, meanMass, sdMass = rows[i].split()
         nBaitModel = int(nBaitModel)
@@ -89,7 +99,9 @@ with open(infilename, 'r') as file:
             st = st + list(map(int, [LS, nMass, GSC, GMC, GUM]))
             baitModelsStats.append(st)
         i += 1
-        baits[bait] = (baitModels, baitStats, baitModelsStats)
+        if minimumNumBaits < nBaitModel <= maximumNumBaits:
+            numBait += 1
+            baits[bait] = (baitModels, baitStats, baitModelsStats)
 print("Done\n")
 # ---------------------------------------------
 
@@ -110,11 +122,13 @@ if massfilename != "":
 # ---------------------------------------------
 
 # ------------ FUSION BAIT MODELS -------------
-print("Uncertainty         : ", uncertainty, " Da")
-print("Number of baits     : ", nBait)
-print("Min # of baitModels : ", minCount)
-print("Max # of baitModels : ", maxCount)
-print("Avg # of baitModels : ", moyCount)
+print("Uncertainty                                      : ", uncertainty, " Da")
+print("Number of baits with at least one bait model     : ", nBaitOne)
+print("Number of baits with mass dispersion > 1.0 Da    : ", massDispCount)
+print("Number of baits                                  : ", numBait)
+print("Min # of baitModels                              : ", minCount)
+print("Max # of baitModels                              : ", maxCount)
+print("Avg # of baitModels                              : ", moyCount)
 
 for bait, data in baits.items():
     fusedBait, candidate, keepgoing = "", "_", True
@@ -123,8 +137,8 @@ for bait, data in baits.items():
     masses = [0.0 for _ in range(lenBaitModels)]
     indices = [0 for _ in range(lenBaitModels)]
     validation = [valid for _ in range(lenBaitModels)]
-    # if bait != "HSSVGSVIAK":
-    #     continue
+    if onlythisbait != "" and bait != onlythisbait:
+        continue
     print("\nBait   : ", bait)
 
     while candidate not in stopAA and keepgoing:
@@ -134,7 +148,7 @@ for bait, data in baits.items():
         for i in range(lenBaitModels):
             frommass, c = False, "_"
 
-            if 0 <= indices[i] < len(baitModels[i]) and validation[i]:
+            if 0 <= indices[i] < len(baitModels[i]) and validation[i] != invalid:
                 c = baitModels[i][indices[i]]
 
                 # check if not mass
@@ -169,7 +183,7 @@ for bait, data in baits.items():
                     candidates[c], scoresA[c], scoresB[c] = 0, 0, 0
                 candidates[c] += 0.25 if frommass else 1
                 scoresA[c] += validation[i]
-                scoresB[c] += scoreBM(baitModelsStats[i])
+                scoresB[c] += validation[i]*scoreBM(baitModelsStats[i])
 
         mostpresent, doubt = 0, True
         for k, v in candidates.items():
@@ -187,6 +201,7 @@ for bait, data in baits.items():
                     doubt = sameA and sameB
         # No clear candidate
         if candidate not in mono or mostpresent == 0 or doubt:
+            stopcount += 1
             keepgoing = False
             break
         fusedBait += candidate # clear candidate
@@ -223,7 +238,7 @@ for bait, data in baits.items():
                     else:
                         validation[i] = invalid
 
-                if validation[i] and abs(masses[i]) < trace:
+                if validation[i] != invalid and abs(masses[i]) < trace:
                     indices[i] += 1
 
     # Check if fusedBait is the same as bait and count the number of matching
@@ -232,14 +247,29 @@ for bait, data in baits.items():
     solvedbaits += 1 if isequal else 0
     charcount += numMatch
     totalchar += len(bait)
+    if lenBaitModels not in histo:
+        histo[lenBaitModels] = [0, 0]
+    histo[lenBaitModels][0] += 1 if isequal else 0
+    histo[lenBaitModels][1] += 1
     print("Fusion : ", fusedBait)
 # --------------------------------------------
 
 # ---------------- RESULTS -------------------
 print("\nSolved baits\t\t : {} / {} ({:.2f} %)".format(solvedbaits,
-                                                     nBait,
-                                                     (solvedbaits/nBait)*100))
+                                                     numBait,
+                                                     (solvedbaits/numBait)*100))
 print("# of matching characters : {} / {} ({:.2f} %)".format(charcount,
                                                              totalchar,
                                                              (charcount/totalchar)*100))
+print("# of stopped resolution  : {} / {} ({:.2f} %)".format(stopcount,
+                                                            numBait,
+                                                            (stopcount/numBait)*100))
+# --------------------------------------------
+
+# ------------------ PLOTS -------------------
+lengthBaitModels, tuples = tuple(zip(*[t[0] for t in sorted(zip(histo.items()))]))
+proportions = list(map(lambda t: t[0]/t[1], tuples))
+plt.bar(lengthBaitModels, proportions)
+plt.title("Proportion de baits retrouvés selon le nombre de baitModels")
+plt.show()
 # --------------------------------------------

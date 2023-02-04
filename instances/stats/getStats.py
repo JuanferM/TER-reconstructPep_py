@@ -10,16 +10,17 @@ pd.set_option('display.max_columns', None)
 baits = {}
 infilename = sys.argv[1]
 baitPrintLength = 30
-nBait, minCount, maxCount, moyCount = 0, 0, 0, 0
 labCol = ["mass (Da)", "LS", "# G", "# GSC", "# GMC", "# GUM"]
+nBait, nBaitOne, massDispCount, minCount, maxCount, moyCount = 0, 0, 0, 0, 0, 0
 
 # ------------- READING STATS FILE ------------
 print("Reading stats file...")
 with open(infilename, 'r') as file:
     i, rows = 1, file.read().split('\n')
-    nBait, minCount, maxCount, moyCount = rows[0].split()
+    nBait, nBaitOne, massDispCount, minCount, maxCount, moyCount = rows[0].split()
     moyCount = float(moyCount)
-    nBait, minCount, maxCount = map(int, (nBait, minCount, maxCount))
+    t = (nBait, nBaitOne, massDispCount, minCount, maxCount)
+    nBait, nBaitOne, massDispCount, minCount, maxCount = map(int, t)
     while i < len(rows)-1:
         bait, nBaitModel, meanMass, sdMass = rows[i].split()
         nBaitModel = int(nBaitModel)
@@ -45,10 +46,12 @@ print("GSC = Gaps with mass corresponding to a Single Combination")
 print("GMC = Gaps with mass corresponding to Multiple Combinations")
 print("GUM = Gaps with Unknown Mass\n")
 
-print("Number of baits     : ", nBait)
-print("Min # of baitModels : ", minCount)
-print("Max # of baitModels : ", maxCount)
-print("Avg # of baitModels : ", moyCount, '\n')
+print("Number of baits                                  : ", nBait)
+print("Number of baits with at least one bait model     : ", nBaitOne)
+print("Number of baits with mass dispersion > 1.0 Da    : ", massDispCount)
+print("Min # of baitModels                              : ", minCount)
+print("Max # of baitModels                              : ", maxCount)
+print("Avg # of baitModels                              : ", moyCount, '\n')
 
 bait = ""
 while bait != "q":

@@ -8,7 +8,8 @@ if len(sys.argv) < 3 and len(sys.argv) > 4:
  and the output instance name as arguments. Also provide the path to the mass table if you\
  wish to compute all the stats.')
 
-uncertainty = 0.01
+massDispersionCount = 0
+uncertainty, trace = 0.01, 1.0
 AA = "ARNDCEQGHILKMFPSTWYVCU"
 NUMS = "-.0123456789"
 mono = {"A" : 71.03,
@@ -33,6 +34,7 @@ mono = {"A" : 71.03,
         "V" : 99.06,
         "U" : 150.95
         }
+baitsWithAtLeastOneBM = 0
 baits, hitModified, massTable = {}, {}, {}
 baitStats, baitModelsStats = {}, {}
 infilename, outfilename, massfilename = sys.argv[1], sys.argv[2], ""
@@ -102,6 +104,7 @@ print("Computing stats...")
 minCount, maxCount, moyCount = sys.maxsize, 0, 0 # General info
 for bait, L in baits.items():
     sz = len(L)
+    baitsWithAtLeastOneBM += 1 if sz > 1 else 0
     minCount = min(minCount, sz)
     maxCount = max(maxCount, sz)
     moyCount += sz
@@ -147,10 +150,11 @@ for bait, L in baits.items():
     for i in range(sz):
         quadmean += (baitModelsMass[i] - meanMass) ** 2
     sdMass = math.sqrt(quadmean/sz)
+    if sdMass > trace:
+        massDispersionCount += 1
     baitStats[bait] = (truncate(meanMass, 2), truncate(sdMass, 2))
 
 moyCount /= len(baits)
-# TODO Stats sur les hitModifieds
 print("Done\n")
 # ---------------------------------------------
 
@@ -159,6 +163,8 @@ print("Writing stats file...")
 with open("stats_"+outfilename, 'w') as file:
     # write number of baits; min, max and mean number of baitModels
     file.write(str(len(baits.keys())) + " ")
+    file.write(str(baitsWithAtLeastOneBM) + " ")
+    file.write(str(massDispersionCount) + " ")
     file.write(str(minCount) + " " + str(maxCount) + " ")
     file.write(str(moyCount) + "\n")
 
