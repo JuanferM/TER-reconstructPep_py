@@ -271,5 +271,6 @@ lengthBaitModels, tuples = tuple(zip(*[t[0] for t in sorted(zip(histo.items()))]
 proportions = list(map(lambda t: t[0]/t[1], tuples))
 plt.bar(lengthBaitModels, proportions)
 plt.title("Proportion de baits retrouvés selon le nombre de baitModels")
+plt.xlabel("Nombre de baitModels")
 plt.show()
 # --------------------------------------------
