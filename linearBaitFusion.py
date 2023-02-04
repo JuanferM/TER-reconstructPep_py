@@ -122,13 +122,14 @@ if massfilename != "":
 # ---------------------------------------------
 
 # ------------ FUSION BAIT MODELS -------------
-print("Uncertainty                                      : ", uncertainty, " Da")
-print("Number of baits with at least one bait model     : ", nBaitOne)
-print("Number of baits with mass dispersion > 1.0 Da    : ", massDispCount)
-print("Number of baits                                  : ", numBait)
-print("Min # of baitModels                              : ", minCount)
-print("Max # of baitModels                              : ", maxCount)
-print("Avg # of baitModels                              : ", moyCount)
+print("Uncertainty                              : ", uncertainty, " Da")
+print("# of baits                               : ", numBait)
+print("# of baits in stats file                 : ", nBait)
+print("# of baits with at least one bait model  : ", nBaitOne)
+print("# of baits with mass dispersion > 1.0 Da : ", massDispCount)
+print("Min # of baitModels                      : ", minCount)
+print("Max # of baitModels                      : ", maxCount)
+print("Avg # of baitModels                      : ", moyCount)
 
 for bait, data in baits.items():
     fusedBait, candidate, keepgoing = "", "_", True
@@ -248,9 +249,11 @@ for bait, data in baits.items():
     charcount += numMatch
     totalchar += len(bait)
     if lenBaitModels not in histo:
-        histo[lenBaitModels] = [0, 0]
+        histo[lenBaitModels] = [0, 0, 0, 0]
     histo[lenBaitModels][0] += 1 if isequal else 0
-    histo[lenBaitModels][1] += 1
+    histo[lenBaitModels][1] += 1 if bait in baitModels else 0
+    histo[lenBaitModels][2] += 1 if isequal and bait in baitModels else 0
+    histo[lenBaitModels][3] += 1
     print("Fusion : ", fusedBait)
 # --------------------------------------------
 
@@ -268,9 +271,23 @@ print("# of stopped resolution  : {} / {} ({:.2f} %)".format(stopcount,
 
 # ------------------ PLOTS -------------------
 lengthBaitModels, tuples = tuple(zip(*[t[0] for t in sorted(zip(histo.items()))]))
-proportions = list(map(lambda t: t[0]/t[1], tuples))
-plt.bar(lengthBaitModels, proportions)
+propFound = list(map(lambda t: t[0]/t[3], tuples))
+plt.bar(lengthBaitModels, propFound, width=1)
 plt.title("Proportion de baits retrouvés selon le nombre de baitModels")
+plt.xlabel("Nombre de baitModels")
+plt.show()
+
+propBaitInBM = list(map(lambda t: t[1]/t[3], tuples))
+plt.bar(lengthBaitModels, propBaitInBM, width=1)
+plt.title("Proportion de baits selon le nombre de baitModels et\n\
+où la séquence du bait fait partie des baitModels")
+plt.xlabel("Nombre de baitModels")
+plt.show()
+
+propBaitInBMFound = list(map(lambda t: t[2]/t[3], tuples))
+plt.bar(lengthBaitModels, propBaitInBMFound, width=1)
+plt.title("Proportion de baits retrouvés selon le nombre de baitModels\n\
+et où la séquence du bait fait partie des baitModels")
 plt.xlabel("Nombre de baitModels")
 plt.show()
 # --------------------------------------------
