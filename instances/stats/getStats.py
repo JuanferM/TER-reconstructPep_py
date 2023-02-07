@@ -10,7 +10,7 @@ pd.set_option('display.max_columns', None)
 baits = {}
 infilename = sys.argv[1]
 baitPrintLength = 30
-labCol = ["mass (Da)", "LS", "# G", "# GSC", "# GMC", "# GUM"]
+labCol = ["SPC", "SGS", "mass (Da)", "LS", "# G", "# GSC", "# GMC", "# GUM"]
 nBait, nBaitOne, massDispCount, minCount, maxCount, moyCount = 0, 0, 0, 0, 0, 0
 
 # ------------- READING STATS FILE ------------
@@ -27,11 +27,11 @@ with open(infilename, 'r') as file:
         baitStats = (float(meanMass), float(sdMass))
         baitModels, baitModelsStats = [], []
         for i in range(i+1, i+1+nBaitModel):
-            baitModel, baitMass, LS, nMass, GSC, GMC, GUM = rows[i].split()
+            baitModel, SPC, SGscore, baitMass, LS, nMass, GSC, GMC, GUM = rows[i].split()
             if len(baitModel) > baitPrintLength:
                 baitModel = baitModel[:baitPrintLength]+"..."
             baitModels.append(baitModel)
-            st = [float(baitMass)]
+            st = [int(SPC), float(SGscore), float(baitMass)]
             st = st + list(map(int, [LS, nMass, GSC, GMC, GUM]))
             baitModelsStats.append(st)
         i += 1
@@ -40,7 +40,9 @@ print("Done\n")
 # ---------------------------------------------
 
 # ------------ PRINTING STATS FILE ------------
-print("LS  = LongestStretch")
+print("SPC = Shared Peak Count")
+print("SGS = SpecGlob Score")
+print("LS  = Longest Stretch")
 print("G   = Gaps")
 print("GSC = Gaps with mass corresponding to a Single Combination")
 print("GMC = Gaps with mass corresponding to Multiple Combinations")
