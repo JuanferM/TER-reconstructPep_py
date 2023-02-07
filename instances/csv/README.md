@@ -10,8 +10,11 @@ La colonne 4 est le baitModel ; pour le créer le hitModified est traité par un
 
 Chaque bait a un ou plusieurs hit(s). Par exemple le premier bait du fichier, VCASIAQK, est relié à 6 hits.
 
-Ce fichier contient un échantillon de 10 000 baits, au total 56 412 PSMs (lien entre hit et bait).
+Les fichiers contiennent :
 
+- Les 10 000 premiers baits avec plus d'un hit, au total 56 412 PSMs (lien entre hit et bait)
+- Les 100 000 premiers baits avec plus d'un hit, au total 703 354 PSMs
+- L'intégralité des PSMs renvoyés par SpecOMS (même pour les baits qui n'ont qu'un seul hit), soient 455 404 baits et 5 164 896 PSMs
 
 # Conversion du fichier csv
 Le script convert.py permet de convertir ce fichier .csv en une instance dans

@@ -35,7 +35,7 @@ mono = {"A" : 71.03,
         "U" : 150.95
         }
 baitsWithAtLeastOneBM = 0
-baits, hitModified, massTable = {}, {}, {}
+baits, massTable = {}, {}
 baitStats, baitModelsStats = {}, {}
 infilename, outfilename, massfilename = sys.argv[1], sys.argv[2], ""
 if len(sys.argv) == 4:
@@ -64,10 +64,7 @@ with open(infilename, 'r') as file:
         if counter != 0:
             if row[0] not in baits:
                 baits[row[0]] = []
-            baits[row[0]].append(row[3])
-            if row[0] not in hitModified:
-                hitModified[row[0]] = []
-            hitModified[row[0]].append(row[2])
+            baits[row[0]].append((row[5], row[2], row[4]))
         counter += 1
 print("Done\n")
 # ---------------------------------------------
@@ -77,9 +74,9 @@ print("Generating instance...")
 with open(outfilename, 'w') as file:
     file.write(str(len(baits.keys()))+"\n")
     for k, v in baits.items():
-        file.write(k+" "+str(len(baits[k]))+"\n")
-        for baitModels in baits[k]:
-            file.write(baitModels+"\n")
+        file.write(k+" "+str(len(v))+"\n")
+        for baitModel, SPC, SGscore in v:
+            file.write(baitModel+" "+SPC+" "+SGscore+"\n")
 print("Done\n")
 # ---------------------------------------------
 
@@ -110,7 +107,7 @@ for bait, L in baits.items():
     moyCount += sz
     baitModelsStats[bait], baitModelsMass = [], []
     # Compute longest stretch, mass stats, number of offset/mass
-    for baitModel in L:
+    for baitModel, SPC, SGscore in L:
         baitMass, currentMass = 0, ""
         corMass, ambMass, unkMass = 0, 0, 0
         longstretch, stretch, numOffset = -1, 0, 0
@@ -142,7 +139,8 @@ for bait, L in baits.items():
                 stretch = 0
         baitModelsMass.append(baitMass)
         longstretch = max(longstretch, stretch)
-        baitModelsStats[bait].append((baitModel, str(truncate(baitMass, 2)), str(longstretch),
+        baitModelsStats[bait].append((baitModel, SPC, SGscore,
+                                      str(truncate(baitMass, 2)), str(longstretch),
                                       str(numOffset), str(corMass), str(ambMass), str(unkMass)))
     # Compute mass standard deviation and mean
     meanMass = sum(baitModelsMass)/sz
@@ -176,7 +174,7 @@ with open("stats_"+outfilename, 'w') as file:
         file.write(k+" "+sz+" "+str(meanMass)+" "+str(sdMass)+"\n")
         # for each baitModel
         for stats in baitModelsStats[k]:
-            # write baitModel, bait mass, longest stretch, number of mass, ...
+            # write baitModel, SPC, SpecGlob score, mass, longest stretch, # of mass, ...
             file.write(" ".join(stats)+"\n")
 print("Done\n")
 # ---------------------------------------------
