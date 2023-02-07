@@ -301,14 +301,14 @@ propFound = list(map(lambda t: t[0]/t[3], tuples))
 plt.bar(lengthBaitModels, propFound, width=1)
 plt.title("Proportion de baits retrouvés selon le nombre de baitModels")
 plt.xlabel("Nombre de baitModels")
-# plt.show()
-#
-# propBaitInBM = list(map(lambda t: t[1]/t[3], tuples))
-# plt.bar(lengthBaitModels, propBaitInBM, width=1)
-# plt.title("Proportion de baits selon le nombre de baitModels et\n\
-# où la séquence du bait fait partie des baitModels")
-# plt.xlabel("Nombre de baitModels")
-# plt.show()
+plt.show()
+
+propBaitInBM = list(map(lambda t: t[1]/t[3], tuples))
+plt.bar(lengthBaitModels, propBaitInBM, width=1)
+plt.title("Proportion de baits selon le nombre de baitModels et\n\
+où la séquence du bait fait partie des baitModels")
+plt.xlabel("Nombre de baitModels")
+plt.show()
 
 propBaitInBMFound = list(map(lambda t: t[2]/t[3], tuples))
 plt.bar(lengthBaitModels, propBaitInBMFound, width=1)
