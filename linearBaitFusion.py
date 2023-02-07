@@ -11,17 +11,19 @@ if len(sys.argv) != 3:
 infilename, massfilename = sys.argv[1], sys.argv[2]
 
 # ---------------- PARAMETERS -----------------
+verbose = False
 onlythisbait = ""
-minimumNumBaits = 1
-maximumNumBaits = float('inf') # included
+minNumBaits = 1
+maxNumBaits = float('inf') # included
+reconstruct = 0.8
 uncertainty, trace = 0.01, 1.0
 valid, probation, invalid = 4, 1, 0
-canreverse, reconstructFromBoth = True, True
+canreverse, reconstructFromBoth = False, True
 # ---------------------------------------------
 
 histo, baits, massTable = {}, {}, {}
-numBait, solvedbaits, stopcount, charcount, totalchar = 0, 0, 0, 0, 0
 nBait, nBaitOne, massDispCount, minCount, maxCount, moyCount = 0, 0, 0, 0, 0, 0
+numBait, solvedbaits, stopcount, charcount, totalchar, totalInBM = 0, 0, 0, 0, 0, 0
 stopAA = "KR"
 NUMS = "-.0123456789"
 mono = {"A" : 71.03,
@@ -98,7 +100,7 @@ with open(infilename, 'r') as file:
             st = st + list(map(int, [LS, nMass, GSC, GMC, GUM]))
             baitModelsStats.append(st)
         i += 1
-        if minimumNumBaits < nBaitModel <= maximumNumBaits:
+        if minNumBaits < nBaitModel <= maxNumBaits:
             numBait += 1
             baits[bait] = (baitModels, baitStats, baitModelsStats)
 print("Done\n")
@@ -121,6 +123,8 @@ if massfilename != "":
 # ---------------------------------------------
 
 # ------------ FUSION BAIT MODELS -------------
+print("Verbose                                  : ", verbose)
+print("Trace                                    : ", trace, " Da")
 print("Uncertainty                              : ", uncertainty, " Da")
 print("# of baits                               : ", numBait)
 print("# of baits in stats file                 : ", nBait)
@@ -141,8 +145,10 @@ for bait, data in baits.items():
     validation = [valid for _ in range(lenBaitModels)]
     if onlythisbait != "" and bait != onlythisbait:
         continue
-    print("\nBait   : ", bait)
+    if verbose:
+        print("\nBait   : ", bait)
 
+    # Find sequence
     while (candidate not in stopAA or reverse) and keepgoing:
         # STEP1 : Elect candidate
         candidate = "_"
@@ -270,20 +276,36 @@ for bait, data in baits.items():
         else:
             cond = len(fusedBait) > len(befRevBait)
             fusedBait = fusedBait[::-1] if cond else befRevBait
+    inBM = bait in baitModels
+    fun = lambda l1, l2: min(l1, l2)/max(l1, l2) >= reconstruct
+    rec = fun(len(bait), len(fusedBait))
     isequal, numMatch = compare(bait, fusedBait)
     solvedbaits += 1 if isequal else 0
     charcount += numMatch
     totalchar += len(bait)
+    totalInBM += 1 if inBM else 0
     if lenBaitModels not in histo:
-        histo[lenBaitModels] = [0, 0, 0, 0]
+        histo[lenBaitModels] = [0, 0, 0, 0, 0, 0, 0, 0]
+    # Found bait data
     histo[lenBaitModels][0] += 1 if isequal else 0
-    histo[lenBaitModels][1] += 1 if bait in baitModels else 0
-    histo[lenBaitModels][2] += 1 if isequal and bait in baitModels else 0
-    histo[lenBaitModels][3] += 1
-    print("Fusion : ", fusedBait)
+    histo[lenBaitModels][1] += 1 if isequal and inBM else 0
+    # Not found but fusedBait is not empty
+    cond = not isequal and rec
+    histo[lenBaitModels][2] += 1 if cond else 0
+    histo[lenBaitModels][3] += 1 if cond and inBM else 0
+    # fusedBait is empty
+    cond = not isequal and not rec
+    histo[lenBaitModels][4] += 1 if cond else 0
+    histo[lenBaitModels][5] += 1 if cond and inBM else 0
+    # Totals
+    histo[lenBaitModels][6] += 1 if inBM else 0
+    histo[lenBaitModels][7] += 1
+    if verbose:
+        print("Fusion : ", fusedBait)
 # --------------------------------------------
 
 # ---------------- RESULTS -------------------
+print("# of bait sequence incl. in bait models  : ", totalInBM)
 print("\nSolved baits\t\t : {} / {} ({:.2f} %)".format(solvedbaits,
                                                      numBait,
                                                      (solvedbaits/numBait)*100))
@@ -296,24 +318,66 @@ print("# of stopped resolution  : {} / {} ({:.2f} %)".format(stopcount,
 # --------------------------------------------
 
 # ------------------ PLOTS -------------------
+options = ""
+if canreverse and not reconstructFromBoth:
+    options = " (plus inverse)"
+elif canreverse and reconstructFromBoth:
+    options = " (deux sens)"
+lableg = ["reconstitués", "reconstitués mais erronés", "non reconstitués"]
 lengthBaitModels, tuples = tuple(zip(*[t[0] for t in sorted(zip(histo.items()))]))
-propFound = list(map(lambda t: t[0]/t[3], tuples))
-plt.bar(lengthBaitModels, propFound, width=1)
+
+propFound = list(map(lambda t: t[0]/t[7], tuples))
+propNotEqual = list(map(lambda t: t[2]/t[7], tuples))
+propNoSeq = list(map(lambda t: t[4]/t[7], tuples))
+
+plt.bar(lengthBaitModels, propFound, width=1, color='g')
+plt.bar(lengthBaitModels, propNotEqual, width=1, color='y', bottom=propFound)
+plt.bar(lengthBaitModels, propNoSeq, width=1, color='r',
+        bottom=[x + y for x, y in zip(propFound, propNotEqual)])
+plt.legend(lableg, loc=4)
 plt.title("Proportion de baits retrouvés selon le nombre de baitModels")
 plt.xlabel("Nombre de baitModels")
-plt.show()
+plt.savefig("proportion baits reconstitues{}.png".format(options))
+# plt.show()
 
-propBaitInBM = list(map(lambda t: t[1]/t[3], tuples))
-plt.bar(lengthBaitModels, propBaitInBM, width=1)
-plt.title("Proportion de baits selon le nombre de baitModels et\n\
-où la séquence du bait fait partie des baitModels")
-plt.xlabel("Nombre de baitModels")
-plt.show()
+propFoundInBM = list(map(lambda t: 0 if not t[6] else t[1]/t[6], tuples))
+propNotEqualInBM = list(map(lambda t: 0 if not t[6] else t[3]/t[6], tuples))
+propNoSeqInBM = list(map(lambda t: 0 if not t[6] else t[5]/t[6], tuples))
 
-propBaitInBMFound = list(map(lambda t: t[2]/t[3], tuples))
-plt.bar(lengthBaitModels, propBaitInBMFound, width=1)
+plt.clf()
+plt.bar(lengthBaitModels, propFoundInBM, width=1, color='g')
+plt.bar(lengthBaitModels, propNotEqualInBM, width=1, color='y', bottom=propFoundInBM)
+plt.bar(lengthBaitModels, propNoSeqInBM, width=1, color='r',
+        bottom=[x + y for x, y in zip(propFoundInBM, propNotEqualInBM)])
+plt.legend(lableg, loc=4)
 plt.title("Proportion de baits retrouvés selon le nombre de baitModels\n\
 et où la séquence du bait fait partie des baitModels")
 plt.xlabel("Nombre de baitModels")
-plt.show()
+plt.savefig("proportion baits reconstitues inclus dans baitmodels{}.png".format(options))
+# plt.show()
+
+propFoundInBM = list(map(lambda t: t[1]/t[7], tuples))
+propNotEqualInBM = list(map(lambda t: t[3]/t[7], tuples))
+propNoSeqInBM = list(map(lambda t: t[5]/t[7], tuples))
+
+plt.clf()
+plt_1 = plt.figure(figsize=(6.4, 5.2))
+plt.bar(lengthBaitModels, propFoundInBM, width=1, color='g')
+plt.bar(lengthBaitModels, propNotEqualInBM, width=1, color='y', bottom=propFoundInBM)
+plt.bar(lengthBaitModels, propNoSeqInBM, width=1, color='r',
+        bottom=[x + y for x, y in zip(propFoundInBM, propNotEqualInBM)])
+plt.legend(lableg, loc=4)
+plt.title("Proportion de baits retrouvés selon le nombre de baitModels\n\
+et où la séquence du bait fait partie des baitModels\npar rapport à l'ensemble \
+des baits retrouvés")
+plt.xlabel("Nombre de baitModels")
+plt.savefig("proportion baits reconstitues inclus dans baitmodels ensemble {}.png".format(options))
+# plt.show()
+
+# propBaitInBMFound = list(map(lambda t: t[6]/t[7], tuples))
+# plt.bar(lengthBaitModels, propBaitInBMFound, width=1)
+# plt.title("Proportion de baits selon le nombre de baitModels et\n\
+# où la séquence du bait fait partie des baitModels")
+# plt.xlabel("Nombre de baitModels")
+# plt.show()
 # --------------------------------------------
