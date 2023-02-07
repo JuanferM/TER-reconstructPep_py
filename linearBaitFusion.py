@@ -11,18 +11,17 @@ if len(sys.argv) != 3:
 infilename, massfilename = sys.argv[1], sys.argv[2]
 
 # ---------------- PARAMETERS -----------------
+onlythisbait = ""
 minimumNumBaits = 1
 maximumNumBaits = float('inf') # included
 uncertainty, trace = 0.01, 1.0
 valid, probation, invalid = 4, 1, 0
-onlythisbait = ""
+canreverse, reconstructFromBoth = True, True
 # ---------------------------------------------
 
-histo = {}
-numBait = 0
-solvedbaits, stopcount, charcount, totalchar = 0, 0, 0, 0
+histo, baits, massTable = {}, {}, {}
+numBait, solvedbaits, stopcount, charcount, totalchar = 0, 0, 0, 0, 0
 nBait, nBaitOne, massDispCount, minCount, maxCount, moyCount = 0, 0, 0, 0, 0, 0
-baits, massTable = {}, {}
 stopAA = "KR"
 NUMS = "-.0123456789"
 mono = {"A" : 71.03,
@@ -76,7 +75,7 @@ def compare(bait, fusedBait):
 
 # Compute score for a baitModel
 def scoreBM(stats):
-    _, LS, _, GSC, GMC, GUM = stats
+    _, _, _, LS, _, GSC, GMC, GUM = stats
     return exp(LS/(10+10*GSC+100*GMC+1000*GUM))
 
 # ------------- READING STATS FILE ------------
@@ -93,9 +92,9 @@ with open(infilename, 'r') as file:
         baitStats = (float(meanMass), float(sdMass))
         baitModels, baitModelsStats = [], []
         for i in range(i+1, i+1+nBaitModel):
-            baitModel, baitMass, LS, nMass, GSC, GMC, GUM = rows[i].split()
+            baitModel, SPC, SGscore, baitMass, LS, nMass, GSC, GMC, GUM = rows[i].split()
             baitModels.append(baitModel)
-            st = [float(baitMass)]
+            st = [int(SPC), float(SGscore), float(baitMass)]
             st = st + list(map(int, [LS, nMass, GSC, GMC, GUM]))
             baitModelsStats.append(st)
         i += 1
@@ -132,7 +131,9 @@ print("Max # of baitModels                      : ", maxCount)
 print("Avg # of baitModels                      : ", moyCount)
 
 for bait, data in baits.items():
-    fusedBait, candidate, keepgoing = "", "_", True
+    startchar, stopchar = '[', ']'
+    keepgoing, stopped, reverse = True, False, False
+    fusedBait, befRevBait, candidate, = "", "", "_"
     baitModels, baitStats, baitModelsStats = data
     lenBaitModels = len(baitModels)
     masses = [0.0 for _ in range(lenBaitModels)]
@@ -142,7 +143,7 @@ for bait, data in baits.items():
         continue
     print("\nBait   : ", bait)
 
-    while candidate not in stopAA and keepgoing:
+    while (candidate not in stopAA or reverse) and keepgoing:
         # STEP1 : Elect candidate
         candidate = "_"
         candidates, scoresA, scoresB = {}, {}, {}
@@ -153,12 +154,12 @@ for bait, data in baits.items():
                 c = baitModels[i][indices[i]]
 
                 # check if not mass
-                if c == '[':
-                    indices[i] += 1
+                if c == startchar:
+                    indices[i] += -1 if reverse else 1
                     currentMass, c = "", baitModels[i][indices[i]]
-                    while c != ']' and c in NUMS:
-                        currentMass += c
-                        indices[i] += 1
+                    while c != stopchar and c in NUMS:
+                        currentMass = c+currentMass if reverse else currentMass+c
+                        indices[i] += -1 if reverse else 1
                         c = baitModels[i][indices[i]]
                     c = '_'
                     masses[i] += truncate(float(currentMass), 2)
@@ -197,14 +198,33 @@ for bait, data in baits.items():
                 elif scoresB[k] > scoresB[candidate]:
                     candidate, mostpresent = k, v
                 else:
-                    sameA = scoresA[k] > scoresA[candidate]
-                    sameB = scoresB[k] > scoresB[candidate]
+                    sameA = scoresA[k] == scoresA[candidate]
+                    sameB = scoresB[k] == scoresB[candidate]
                     doubt = sameA and sameB
         # No clear candidate
         if candidate not in mono or mostpresent == 0 or doubt:
-            stopcount += 1
-            keepgoing = False
-            break
+            j = 0
+            while canreverse and j >= 0 and j < lenBaitModels:
+                # print(indices[j], validation[j])
+                if indices[j] <= 0 or validation[j] == invalid:
+                    j += 1
+                else:
+                    j = -1
+            if canreverse and j == lenBaitModels:
+                keepgoing = False
+                break
+            elif canreverse and not reverse:
+                befRevBait = fusedBait
+                reverse, fusedBait = True, ""
+                startchar, stopchar = stopchar, startchar
+                masses = [0.0 for _ in range(lenBaitModels)]
+                indices = [len(bm)-1 for bm in baitModels]
+                validation = [valid for _ in range(lenBaitModels)]
+                continue
+            else:
+                stopcount += 1
+                stopped, keepgoing = reconstructFromBoth, False
+                break
         fusedBait += candidate # clear candidate
 
         # STEP2 : validate baitModels
@@ -240,10 +260,16 @@ for bait, data in baits.items():
                         validation[i] = invalid
 
                 if validation[i] != invalid and abs(masses[i]) < trace:
-                    indices[i] += 1
+                    indices[i] += -1 if reverse else 1
 
     # Check if fusedBait is the same as bait and count the number of matching
     # characters
+    if reverse:
+        if stopped:
+            fusedBait = befRevBait + fusedBait[::-1]
+        else:
+            cond = len(fusedBait) > len(befRevBait)
+            fusedBait = fusedBait[::-1] if cond else befRevBait
     isequal, numMatch = compare(bait, fusedBait)
     solvedbaits += 1 if isequal else 0
     charcount += numMatch
@@ -275,14 +301,14 @@ propFound = list(map(lambda t: t[0]/t[3], tuples))
 plt.bar(lengthBaitModels, propFound, width=1)
 plt.title("Proportion de baits retrouvés selon le nombre de baitModels")
 plt.xlabel("Nombre de baitModels")
-plt.show()
-
-propBaitInBM = list(map(lambda t: t[1]/t[3], tuples))
-plt.bar(lengthBaitModels, propBaitInBM, width=1)
-plt.title("Proportion de baits selon le nombre de baitModels et\n\
-où la séquence du bait fait partie des baitModels")
-plt.xlabel("Nombre de baitModels")
-plt.show()
+# plt.show()
+#
+# propBaitInBM = list(map(lambda t: t[1]/t[3], tuples))
+# plt.bar(lengthBaitModels, propBaitInBM, width=1)
+# plt.title("Proportion de baits selon le nombre de baitModels et\n\
+# où la séquence du bait fait partie des baitModels")
+# plt.xlabel("Nombre de baitModels")
+# plt.show()
 
 propBaitInBMFound = list(map(lambda t: t[2]/t[3], tuples))
 plt.bar(lengthBaitModels, propBaitInBMFound, width=1)
