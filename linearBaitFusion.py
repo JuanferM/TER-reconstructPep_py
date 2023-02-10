@@ -18,12 +18,14 @@ maxNumBaits = float('inf') # included
 reconstruct = 0.8
 uncertainty, trace = 0.01, 1.0
 valid, probation, invalid = 4, 1, 0
-canreverse, reconstructFromBoth = False, True
+canreverse, reconstructFromBoth = True, True
 # ---------------------------------------------
 
 histo, baits, massTable = {}, {}, {}
-nBait, nBaitOne, massDispCount, minCount, maxCount, moyCount = 0, 0, 0, 0, 0, 0
-numBait, solvedbaits, stopcount, charcount, totalchar, totalInBM = 0, 0, 0, 0, 0, 0
+nBait, nBaitOne, numBait = 0, 0, 0
+solvedbaits, unsolvedbaits, nobaits = 0, 0, 0
+massDispCount, minCount, maxCount, moyCount = 0, 0, 0, 0
+stopcount, charcount, totalchar, totalInBM = 0, 0, 0, 0
 stopAA = "KR"
 NUMS = "-.0123456789"
 mono = {"A" : 71.03,
@@ -210,6 +212,8 @@ for bait, data in baits.items():
         # No clear candidate
         if candidate not in mono or mostpresent == 0 or doubt:
             j = 0
+            # Check if we reached the last character in reverse
+            # If so then we're done and we may quit
             while canreverse and j >= 0 and j < lenBaitModels:
                 # print(indices[j], validation[j])
                 if indices[j] <= 0 or validation[j] == invalid:
@@ -268,53 +272,44 @@ for bait, data in baits.items():
                 if validation[i] != invalid and abs(masses[i]) < trace:
                     indices[i] += -1 if reverse else 1
 
-    # Check if fusedBait is the same as bait and count the number of matching
-    # characters
+    # STEP3: determine best sequence computed
     if reverse:
         if stopped:
             fusedBait = befRevBait + fusedBait[::-1]
         else:
             cond = len(fusedBait) > len(befRevBait)
             fusedBait = fusedBait[::-1] if cond else befRevBait
+
+    # Some stats
     inBM = bait in baitModels
+    totalInBM += 1 if inBM else 0
     fun = lambda l1, l2: min(l1, l2)/max(l1, l2) >= reconstruct
     rec = fun(len(bait), len(fusedBait))
     isequal, numMatch = compare(bait, fusedBait)
-    solvedbaits += 1 if isequal else 0
-    charcount += numMatch
-    totalchar += len(bait)
-    totalInBM += 1 if inBM else 0
+
     if lenBaitModels not in histo:
         histo[lenBaitModels] = [0, 0, 0, 0, 0, 0, 0, 0]
     # Found bait data
+    solvedbaits += 1 if isequal else 0
     histo[lenBaitModels][0] += 1 if isequal else 0
     histo[lenBaitModels][1] += 1 if isequal and inBM else 0
     # Not found but fusedBait is not empty
     cond = not isequal and rec
+    unsolvedbaits += 1 if cond else 0
     histo[lenBaitModels][2] += 1 if cond else 0
     histo[lenBaitModels][3] += 1 if cond and inBM else 0
     # fusedBait is empty
     cond = not isequal and not rec
+    nobaits += 1 if cond else 0
     histo[lenBaitModels][4] += 1 if cond else 0
     histo[lenBaitModels][5] += 1 if cond and inBM else 0
     # Totals
     histo[lenBaitModels][6] += 1 if inBM else 0
     histo[lenBaitModels][7] += 1
+    charcount += numMatch
+    totalchar += len(bait)
     if verbose:
         print("Fusion : ", fusedBait)
-# --------------------------------------------
-
-# ---------------- RESULTS -------------------
-print("# of bait sequence incl. in bait models  : ", totalInBM)
-print("\nSolved baits\t\t : {} / {} ({:.2f} %)".format(solvedbaits,
-                                                     numBait,
-                                                     (solvedbaits/numBait)*100))
-print("# of matching characters : {} / {} ({:.2f} %)".format(charcount,
-                                                             totalchar,
-                                                             (charcount/totalchar)*100))
-print("# of stopped resolution  : {} / {} ({:.2f} %)".format(stopcount,
-                                                            numBait,
-                                                            (stopcount/numBait)*100))
 # --------------------------------------------
 
 # ------------------ PLOTS -------------------
@@ -381,3 +376,24 @@ plt.savefig("proportion baits reconstitues inclus dans baitmodels ensemble {}.pn
 # plt.xlabel("Nombre de baitModels")
 # plt.show()
 # --------------------------------------------
+
+# ---------------- RESULTS -------------------
+print("# of bait sequence incl. in bait models  : ", totalInBM)
+print("\nSolved baits\t\t : {} / {} ({:.2f} %)".format(solvedbaits,
+                                                     numBait,
+                                                     (solvedbaits/numBait)*100))
+print("Close enough baits\t : {} / {} ({:.2f} %)".format(unsolvedbaits,
+                                                     numBait,
+                                                     (unsolvedbaits/numBait)*100))
+print("Wrong baits\t\t : {} / {} ({:.2f} %)".format(nobaits,
+                                                     numBait,
+                                                     (nobaits/numBait)*100))
+print("# of matching characters : {} / {} ({:.2f} %)".format(charcount,
+                                                             totalchar,
+                                                             (charcount/totalchar)*100))
+print("# of stopped resolution  : {} / {} ({:.2f} %)".format(stopcount,
+                                                            numBait,
+                                                            (stopcount/numBait)*100))
+# --------------------------------------------
+
+
