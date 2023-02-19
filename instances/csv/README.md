@@ -24,10 +24,11 @@ statistiques sur les données (voir README dans le répertoire instances/stats)
 
 Pour calculer toutes les statistiques, utilisez la commande :
 ```
-python3 convert.py data.csv output table.csv
+python3 convert.py data.csv output table.csv clean.csv
 ```
 Où *data.csv*  correspond au fichier .csv décrit ci-dessus;
    *output*    correspond au nom que l'on donne à l'instance de sortie;
    *table.csv* correspond à la table des masses à utiliser pour déterminer si une
         masse est inconnue ou équivalente à une ou plusieurs combinaisons
-        d'acides aminés
+        d'acides aminés;
+   *clean.csv* correspond au fichier .csv indiquant si un bait est "decoy" ou "target"
