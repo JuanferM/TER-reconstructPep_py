@@ -6,7 +6,7 @@ if len(sys.argv) != 2:
     raise FileNotFoundError('File not found. Please provide the stats file name')
 
 infilename = sys.argv[1]
-uncertainty = 0.01
+uncertainty = 1
 mono = {"A" : 71.03,
         "R" : 156.10,
         "N" : 114.04,

@@ -3,10 +3,11 @@ import sys
 import math
 from ctypes import ArgumentError
 
-if len(sys.argv) < 3 and len(sys.argv) > 4:
+if len(sys.argv) < 3 and len(sys.argv) > 5:
     raise FileNotFoundError('File not found. Please provide the csv filename\
  and the output instance name as arguments. Also provide the path to the mass table if you\
- wish to compute all the stats.')
+ wish to compute all the stats. Optionally, you can provide the path to a csv\
+file specifying whether a bait is "Target" or "Decoy" (on column 10).')
 
 massDispersionCount = 0
 uncertainty, trace = 0.01, 1.0
@@ -35,11 +36,11 @@ mono = {"A" : 71.03,
         "U" : 150.95
         }
 baitsWithAtLeastOneBM = 0
-baits, massTable = {}, {}
+baits, massTable, targetTable = {}, {}, {}
 baitStats, baitModelsStats = {}, {}
-infilename, outfilename, massfilename = sys.argv[1], sys.argv[2], ""
-if len(sys.argv) == 4:
-    massfilename = sys.argv[3]
+infilename, outfilename = sys.argv[1], sys.argv[2]
+massfilename = "" if len(sys.argv) < 4 else sys.argv[3]
+targetfilename = "" if len(sys.argv) < 5 else sys.argv[4]
 
 def truncate(number, decimals=0):
     """
@@ -55,13 +56,26 @@ def truncate(number, decimals=0):
     factor = 10.0 ** decimals
     return math.trunc(number * factor) / factor
 
+# ------------ READ TARGET TABLE --------------
+if targetfilename != "":
+    print("Reading target table...")
+    with open(targetfilename, 'r') as file:
+        reader = csv.reader(file, delimiter=';')
+        numrow = 0
+        for row in reader:
+            if numrow != 0:
+                targetTable[row[0]] = True if row[10] == "Target" else False
+            numrow += 1
+    print("Done\n")
+# ---------------------------------------------
+
 # ------------- READING CSV FILE --------------
 print("Reading csv file...")
 with open(infilename, 'r') as file:
     reader = csv.reader(file, delimiter=';')
     counter = 0
     for row in reader:
-        if counter != 0:
+        if counter != 0 and targetTable[row[0]]:
             if row[0] not in baits:
                 baits[row[0]] = []
             baits[row[0]].append((row[5], row[2], row[4]))
@@ -176,5 +190,5 @@ with open("stats_"+outfilename, 'w') as file:
         for stats in baitModelsStats[k]:
             # write baitModel, SPC, SpecGlob score, mass, longest stretch, # of mass, ...
             file.write(" ".join(stats)+"\n")
-print("Done\n")
+print("Done")
 # ---------------------------------------------
