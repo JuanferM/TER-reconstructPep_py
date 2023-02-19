@@ -172,6 +172,7 @@ def simplifyBM(originalBaitModels, baitModelsStats):
             baitModels[i] = newBaitModel
     return baitModels
 
+# Fill results array according to booleans
 def fillResults(R, inBM, wholebaitmodel):
     # bait sequence is amongst the baitmodels
     if inBM:
