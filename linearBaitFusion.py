@@ -1,7 +1,9 @@
 import csv
 import sys
 from math import exp, trunc
-from ctypes import ArgumentError
+from rich import box
+from rich.table import Table
+from rich.console import Console
 import matplotlib.text as mtext
 import matplotlib.pyplot as plt
 
@@ -12,6 +14,7 @@ infilename, massfilename = sys.argv[1], sys.argv[2]
 
 # ---------------- PARAMETERS -----------------
 verbose = False
+fulltable = False
 onlythisbait = ""
 minNumBaits = 1
 maxNumBaits = float('inf') # included
@@ -168,9 +171,20 @@ def simplifyBM(originalBaitModels, baitModelsStats):
                         newBaitModel += sequences[j]
 
             # Replace existing
-            # print(baitModels[i], " => ", newBaitModel)
             baitModels[i] = newBaitModel
     return baitModels
+
+# Make stats table
+def make_table(color="", showline=False, showheader=True):
+    params = {"padding": (0,1,0,1), "pad_edge": False, "expand": True,
+              "style": color, "header_style": "bold " + color,
+              "show_edge": False, "show_lines": showline,
+              "show_header": showheader, "box": box.ASCII_DOUBLE_HEAD}
+    return Table(**params)
+
+# Add stats table's column
+def add_column(table, text, justify="center", color=""):
+    table.add_column(text, justify=justify, style=color)
 
 # Fill results array according to booleans
 def fillResults(R, inBM, wholebaitmodel):
@@ -184,6 +198,7 @@ def fillResults(R, inBM, wholebaitmodel):
     # none of the above
     else:
         R[2] += 1
+    return R
 
 # ------------- READING STATS FILE ------------
 print("Reading stats file...")
@@ -413,31 +428,31 @@ for bait, data in baits.items():
         if isequal:
             resultsPerBM[lenBaitModels][0] += 1
             resultsPerBM[lenBaitModels][4] += 1
-            fillResults(results[0:3], inBM, wholebaitmodel)
+            results[0:3] = fillResults(results[0:3], inBM, wholebaitmodel)
         else:
             ratio = numMatch/lenbait
             resultsPerBM[lenBaitModels][1] += 1
             resultsPerBM[lenBaitModels][5] += 1 if ratio >= 0.8 else 0
             resultsPerBM[lenBaitModels][6] += 1 if ratio < 0.8 else 0
-            fillResults(results[3:6], inBM, wholebaitmodel)
+            results[3:6] = fillResults(results[3:6], inBM, wholebaitmodel)
     else:
         if isequal:
             resultsPerBM[lenBaitModels][2] += 1
             resultsPerBM[lenBaitModels][4] += 1
-            fillResults(results[6:9], inBM, wholebaitmodel)
+            results[6:9] = fillResults(results[6:9], inBM, wholebaitmodel)
         else:
             ratio = numMatch/lenbait
             resultsPerBM[lenBaitModels][3] += 1
             resultsPerBM[lenBaitModels][5] += 1 if ratio >= 0.8 else 0
             resultsPerBM[lenBaitModels][6] += 1 if ratio < 0.8 else 0
             if ratio >= 0.8:
-                fillResults(results[9:12], inBM, wholebaitmodel)
+                results[9:12] = fillResults(results[9:12], inBM, wholebaitmodel)
             elif ratio >= 0.5:
-                fillResults(results[12:15], inBM, wholebaitmodel)
+                results[12:15] = fillResults(results[12:15], inBM, wholebaitmodel)
             elif ratio >= 0.3:
-                fillResults(results[15:18], inBM, wholebaitmodel)
+                results[15:18] = fillResults(results[15:18], inBM, wholebaitmodel)
             else:
-                fillResults(results[18:21], inBM, wholebaitmodel)
+                results[18:21] = fillResults(results[18:21], inBM, wholebaitmodel)
     if not inBM:
         if isequal:
             resultsPerBM[lenBaitModels][7] += 1
@@ -466,6 +481,62 @@ print("\nSolved baits\t\t : {} / {} ({:.2f} %)".format(solvedbaits,
 print("# of matching characters : {} / {} ({:.2f} %)".format(charcount,
                                                              totalchar,
                                                              (charcount/totalchar)*100))
+# ---------------------------------------------
+
+# ------------------ TABLES -------------------
+print()
+entries = {"Reconstitution complète" : ["VP (= bait)", "FP (≠ bait)"],
+           "Reconstitution incomplète": ["FN (= bait)", "80% du bait",
+                                         "50% du bait", "30% du bait",
+                                         "Reste (≠ bait)"]}
+colors = ["green", "dark_orange", "blue", "red"]
+table = Table(title="Statistiques linearBaitFusion.py", padding=(0,0,0,0),
+              box=box.ASCII_DOUBLE_HEAD)
+
+idx, lencol = 0, len(colors)
+symbolIn, symidx = False, -1
+columns = []
+for entry, subentries in entries.items():
+    subtables = []
+    add_column(table, entry)
+    for subentry in subentries:
+        if not fulltable and "%" in subentry:
+            if not symbolIn:
+                symbolIn, symidx = True, idx
+            idx += 1
+            continue
+        cl = colors[-1] if idx >= lencol else colors[idx]
+        subtotal = sum(results[idx*3:3+idx*3])
+        subtable = make_table(cl, True)
+        subtable2, subtable3 = make_table(), make_table()
+
+        add_column(subtable, subentry, color=cl)
+        add_column(subtable2, "bait incl. dans\nles baitmodels")
+        add_column(subtable2, "bait non incl. dans\nles baitmodels")
+        add_column(subtable3, "baitmodel ≠ du\nbait sans\nmodification")
+        add_column(subtable3, "reste")
+
+        if not symbolIn:
+            subtable3.add_row(str(results[1+idx*3]), str(results[2+idx*3]))
+            subtable2.add_row(str(results[idx*3]), subtable3)
+        else:
+            subtotal += sum(results[symidx*3:idx*3])
+            subtable3.add_row(str(sum(results[1+symidx*3::3])),
+                              str(sum(results[2+symidx*3::3])))
+            subtable2.add_row(str(sum(results[symidx*3::3])), subtable3)
+        subtable.add_row(subtable2)
+        subtable.add_row(str(subtotal))
+
+        subtables.append(subtable)
+        idx += 1
+
+    mergetable = make_table(showheader=False)
+    mergetable.add_row(*subtables)
+    columns.append(mergetable)
+table.add_row(*columns)
+
+console = Console()
+console.print(table)
 # ---------------------------------------------
 
 # ------------------- PLOTS -------------------
