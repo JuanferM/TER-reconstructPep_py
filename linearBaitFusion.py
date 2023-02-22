@@ -22,7 +22,6 @@ uncertainty, trace = 0.01, 1.0
 valid, probation, invalid = 4, 1, 0
 canreverse, reconstructFromBoth = True, True
 cansimplify, simplifyBothWays = False, False
-canreturnBMasis = False
 # ---------------------------------------------
 
 results = [0] * 21
@@ -284,9 +283,6 @@ for bait, data in baits.items():
             if baitModelsStats[i][4] == 0:
                 if baitModels[i] != bait:
                     wholebaitmodel = True
-                if canreturnBMasis:
-                    fusedBait, keepgoing = baitModels[i], False
-                    break
 
             frommass, c = False, "_"
 
@@ -552,9 +548,6 @@ class LegendTitle(object):
         return title
 
 options = " (" if canreverse or cansimplify else ""
-if canreturnBMasis:
-    options += "baitmodel as is"
-options += " + " if canreturnBMasis and (canreverse or cansimplify) else ""
 if canreverse:
     if reconstructFromBoth:
         options += "deux sens"
@@ -699,5 +692,4 @@ plt.ylabel("Proportion")
 plt.xlabel("Nombre de baitModels")
 plt.title("Proportion de baits retrouvés en fonction du nombre de baitModels")
 plt.savefig("proportion_plot3{}.png".format(options))
-
 # ---------------------------------------------
