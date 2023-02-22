@@ -281,7 +281,7 @@ for bait, data in baits.items():
         candidate = "_"
         candidates, scoresA, scoresB = {}, {}, {}
         for i in range(lenBaitModels):
-            if baitModelsStats[i][5] == 0:
+            if baitModelsStats[i][4] == 0:
                 if baitModels[i] != bait:
                     wholebaitmodel = True
                 if canreturnBMasis:
@@ -511,9 +511,9 @@ for entry, subentries in entries.items():
         subtable2, subtable3 = make_table(), make_table()
 
         add_column(subtable, subentry, color=cl)
-        add_column(subtable2, "bait incl. dans\nles baitmodels")
-        add_column(subtable2, "bait non incl. dans\nles baitmodels")
-        add_column(subtable3, "baitmodel ≠ du\nbait sans\nmodification")
+        add_column(subtable2, "bait incl.\ndans les\nbaitmodels")
+        add_column(subtable2, "bait non\nincl. dans les\nbaitmodels")
+        add_column(subtable3, "baitmodel ≠\ndu bait sans\nmodification")
         add_column(subtable3, "reste")
 
         if not symbolIn:
