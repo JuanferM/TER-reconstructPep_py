@@ -4,6 +4,7 @@ import sys
 import tempfile
 import subprocess as sbp
 from math import exp, trunc, ceil
+from matplotlib import use
 from rich import box
 from rich.table import Table
 from rich.console import Console
@@ -22,9 +23,10 @@ onlythisbait = ""
 minNumBaits = 1
 maxNumBaits = float('inf') # included
 uncertainty, trace = 0.01, 1
-cansimplify = True
+useMUSCLE, cansimplify = True, True
 clustalopt = "-QUICKTREE -MATRIX=GONNET -GAPOPEN=5 -GAPEXT=1 -NOHGAP \
 -NOWEIGHTS -CLUSTERING=UPGMA"
+muscleopt = "-align" #"-super5"
 # ---------------------------------------------
 
 results = [0] * 21
@@ -56,7 +58,8 @@ mono = {"A" : 71.03,
         "V" : 99.06,
         "U" : 150.95
         }
-cmd = "./clustalw2 -ALIGN -QUIET -OUTPUT=FASTA -OUTORDER=INPUT"
+clustalcmd = "./clustalw2 -ALIGN -QUIET -OUTPUT=FASTA"
+musclecmd = "./muscle5.1"
 
 # truncate to `decimals` decimals
 def truncate(number, decimals=0):
@@ -315,17 +318,23 @@ for bait, data in baits.items():
 
     # STEP3 : run Clustal on the file and create an output file
     IN, OUT = path, path+".out"
-    CMD = cmd+" {} -INFILE={} -OUTFILE={}".format(clustalopt, IN, OUT)
+    if useMUSCLE:
+        CMD = musclecmd+" {} {} -output {}".format(muscleopt, IN, OUT)
+    else:
+        CMD = clustalcmd+" {} -INFILE={} -OUTFILE={}".format(clustalopt, IN, OUT)
     with open(os.devnull, 'wb') as nil:
         sbp.check_call(CMD.split(), stdout=nil, stderr=sbp.STDOUT)
 
     # STEP4 : read outputfile and determine sequence
     with open(OUT, 'r') as f:
         lines = f.read().split('\n')
-        sequences = []
+        sequences = [""]*lenBaitModels
+        idx = -1
         for line in lines:
+            if '>' in line:
+                idx = int(line[2:])
             if '>' not in line and line != "":
-                sequences.append(line)
+                sequences[idx] = line
 
     candidate = "_"
     while candidate not in stopAA and keepgoing:
