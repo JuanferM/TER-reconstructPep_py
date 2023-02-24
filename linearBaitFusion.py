@@ -18,16 +18,15 @@ fulltable = False
 onlythisbait = ""
 minNumBaits = 1
 maxNumBaits = float('inf') # included
-uncertainty, trace = 0.01, 1.0
+uncertainty, trace = 0.01, 1
 valid, probation, invalid = 4, 1, 0
 canreverse, reconstructFromBoth = True, True
 cansimplify, simplifyBothWays = False, False
 # ---------------------------------------------
 
 results = [0] * 21
-nBait, nBaitOne, numBait = 0, 0, 0
 charcount, totalchar, totalInBM = 0, 0, 0
-solvedbaits, unsolvedbaits, nobaits = 0, 0, 0
+nBait, nBaitOne, numBait, solvedbaits = 0, 0, 0, 0
 histo, baits, massTable, resultsPerBM = {}, {}, {}, {}
 massDispCount, minCount, maxCount, moyCount = 0, 0, 0, 0
 stopAA = "KR"
@@ -310,7 +309,7 @@ for bait, data in baits.items():
                             j, ncombi = -abs(mass), len(massTable[str(abs(mass))])
 
                     if ncombi == 1:
-                        combi = massTable[str(abs(j))][0]
+                        combi = massTable[str(-j)][0]
                         if len(combi) == 1: # excess mass is an amino acid
                             c, frommass = combi[0], True
                 else:
