@@ -290,11 +290,11 @@ for bait, data in baits.items():
                             j, ncombi = -abs(mass), len(massTable[str(abs(mass))])
 
                     if ncombi >= 1:
-                        maxlen = -1
+                        moylen = 0
                         for combi in massTable[str(-j)]:
                             lencombi = len(combi)
-                            maxlen = lencombi if lencombi > maxlen else maxlen
-                        converted += '-'*maxlen
+                            moylen += lencombi
+                        converted += '-'*trunc(moylen/ncombi)
                     else:
                         converted += '-'*(ceil(-j/mono['G']))
 
