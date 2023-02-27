@@ -17,7 +17,7 @@ onlythisbait = ""
 minNumBaits = 1
 maxNumBaits = float('inf') # included
 uncertainty, trace = 0.01, 1
-useMUSCLE, cansimplify = False, True
+useMUSCLE, cansimplify = True, True
 clustalopt = "-QUICKTREE -MATRIX=GONNET -GAPOPEN=5 -GAPEXT=1 -NOHGAP \
 -NOWEIGHTS -CLUSTERING=UPGMA"
 muscleopt = ""

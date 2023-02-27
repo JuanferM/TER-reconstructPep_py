@@ -226,19 +226,32 @@ def printStats(verbose, trace, uncertainty, numBait, nBait, nBaitOne,
 # Print results
 def printResults(solvedbaits, numBait, charcount, totalchar, results,
                  fulltable=False):
-    print("\nSolved baits\t\t : {} / {} ({:.2f} %)".format(solvedbaits,
+    FN, TN = sum(results[6:9]), sum(results[9:])
+    TP, FP = sum(results[0:3]), sum(results[3:6])
+    print("\nRecall\t\t\t : {} / {} ({:.2f} %)".format(TP, TP+FN,
+                                                    (TP/(TP+FN))*100))
+    print("Accuracy\t\t : {} / {} ({:.2f} %)".format(TP+TN, TP+FP+TN+FN,
+                                                    ((TP+TN)/(TP+FP+TN+FN))*100))
+    print("Precision\t\t : {} / {} ({:.2f} %)".format(TP, TP+FP,
+                                                    (TP/(TP+FP))*100))
+    print("Specifity\t\t : {} / {} ({:.2f} %)".format(TN, TN+FP,
+                                                    (TN/(TN+FP))*100))
+    print("Sensitivity\t\t : {} / {} ({:.2f} %)".format(TP, TP+FN,
+                                                    (TP/(TP+FN))*100))
+    print("Solved baits\t\t : {} / {} ({:.2f} %)".format(solvedbaits,
                                                      numBait,
                                                      (solvedbaits/numBait)*100))
-    print("# of matching characters : {} / {} ({:.2f} %)\n".format(charcount,
+    print("# of matching characters : {} / {} ({:.2f} %)".format(charcount,
                                                      totalchar,
                                                      (charcount/totalchar)*100))
+    print("F-measure\t\t : 2*TP / (2*TP + FP + FN) ({:.2f} %)".format((2*TP/(2*TP+FP+FN))*100))
 
     entries = {"Reconstitution complète" : ["VP (= bait)", "FP (≠ bait)"],
                "Reconstitution incomplète": ["FN (= bait)", "80% du bait",
                                              "50% du bait", "30% du bait",
                                              "Reste (≠ bait)"]}
     colors = ["green", "dark_orange", "blue", "red"]
-    table = Table(title="Statistiques linearBaitFusion.py", padding=(0,0,0,0),
+    table = Table(title="Statistiques baitFusion", padding=(0,0,0,0),
                   box=box.ASCII_DOUBLE_HEAD)
 
     idx, lencol = 0, len(colors)
@@ -283,6 +296,7 @@ def printResults(solvedbaits, numBait, charcount, totalchar, results,
         columns.append(mergetable)
     table.add_row(*columns)
 
+    print()
     console = Console()
     console.print(table)
 
