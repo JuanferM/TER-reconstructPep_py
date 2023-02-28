@@ -189,7 +189,7 @@ def readStatsFile(fname, minNumBaits=0, maxNumBaits=float('inf')):
                 totalInBM += 1 if bait in baitModels else 0
                 baits[bait] = (baitModels, baitStats, baitModelsStats)
     print("Done\n")
-    return nBait, nBaitOne, numBait, totalInBM, baits
+    return nBait, nBaitOne, numBait, totalInBM, baits, massDispCount, minCount, maxCount, moyCount
 
 # Read mass table
 def readMassTable(fname):

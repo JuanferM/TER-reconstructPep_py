@@ -56,9 +56,10 @@ clustalcmd = "./clustalw2 -ALIGN -QUIET -OUTPUT=FASTA"
 musclecmd = "./muscle3.8"
 
 # ------------- READING STATS FILE ------------
-nBait, nBaitOne, numBait, totalInBM, baits = readStatsFile(infilename,
-                                                           minNumBaits,
-                                                           maxNumBaits)
+nBait, nBaitOne, numBait, totalInBM, baits, massDispCount,\
+minCount, maxCount, moyCount = readStatsFile(infilename,
+                                             minNumBaits,
+                                             maxNumBaits)
 # ---------------------------------------------
 
 # ------------- READ MASS TABLE ---------------
