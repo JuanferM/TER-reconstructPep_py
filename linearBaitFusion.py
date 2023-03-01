@@ -115,7 +115,10 @@ for bait, data in baits.items():
                     masses[i] += truncate(float(currentMass), 2)
 
                 # If there is enough excess mass from previous iteration
-                if abs(masses[i]) >= trace:
+                if masses[i] < -trace:
+                	validation[i] = invalid
+                	continue
+                elif abs(masses[i]) >= trace:
                     j, mass, ncombi = 0, truncate(masses[i], 2), -1
                     while 0 <= j < 3:
                         mass = truncate(mass + (-1)*(j%2)*uncertainty*j, 2)

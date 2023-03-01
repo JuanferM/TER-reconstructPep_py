@@ -13,6 +13,7 @@ The format of *stats_bait10000.txt* is as follows :
     - the mean of all baitModels masses
     - the standard deviation of all baitModels masses
     - the following **n** lines are the baitModels associated to the bait, the
+      shared Peak Count of the baitModel, the specGlob score of the baitModel, the
       mass of the baitModel, the longest stretch in that baitModel, the number
       of gaps in that baitModel, the number of gaps in which the mass
       corresponds to a single combination, the number of gaps in which the mass
