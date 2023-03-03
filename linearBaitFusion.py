@@ -116,8 +116,8 @@ for bait, data in baits.items():
 
                 # If there is enough excess mass from previous iteration
                 if masses[i] < -trace:
-                	validation[i] = invalid
-                	continue
+                    validation[i] = invalid
+                    continue
                 elif abs(masses[i]) >= trace:
                     j, mass, ncombi = 0, truncate(masses[i], 2), -1
                     while 0 <= j < 3:
@@ -188,28 +188,19 @@ for bait, data in baits.items():
             if 0 <= indices[i] < len(baitModels[i]):
                 c = baitModels[i][indices[i]]
                 # Come back (previously invalidated but might match now)
-                if c == candidate and abs(masses[i]) < trace:
+                if c == candidate and abs(masses[i]) <= trace:
                     if validation[i] == invalid:
                         validation[i] = probation
                 else:
                     # excess mass...
                     if masses[i] >= trace:
-                        if masses[i] - mono[candidate] >= 0:
+                        if masses[i] - mono[candidate] >= -trace:
                             # we can substract mass of candidate from excess mass
                             masses[i] -= mono[candidate]
                             masses[i] = truncate(masses[i], 2)
                         else:
-                            # if excess mass corresponds to an amino acid then we
-                            # put the baitModel in probation. The baitModel will be
-                            # invalidated otherwise.
-                            j, mass, ncombi = 0, truncate(masses[i], 2), -1
-                            while j < 3 and j != -1:
-                                mass = truncate(mass + (-1)*(j%2)*uncertainty*j, 2)
-                                j += 1
-                                if str(abs(mass)) in massTable:
-                                    j, ncombi = -1, len(massTable[str(abs(mass))])
-                            if ncombi == -1:
-                                validation[i] = invalid
+                            indices[i] = -1
+                            validation[i] = invalid
                     elif c in mono and validation[i] == valid: # no match but it's an amino acid
                         validation[i] = probation
                     else:
