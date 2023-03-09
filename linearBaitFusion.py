@@ -9,14 +9,14 @@ infilename, massfilename = sys.argv[1], sys.argv[2]
 
 # ---------------- PARAMETERS -----------------
 verbose = False
-fulltable = False
+fulltable = True
 onlythisbait = ""
 minNumBaits = 1
 maxNumBaits = float('inf') # included
 uncertainty, trace = 0.01, 1
 valid, probation, invalid = 4, 1, 0
 canreverse, reconstructFromBoth = True, True
-cansimplify, simplifyBothWays = False, False
+cansimplify, simplifyBothWays = True, True
 # ---------------------------------------------
 
 results = [0] * 21
@@ -85,7 +85,7 @@ for bait, data in baits.items():
     # STEP0 : simplify baitmodels
     if cansimplify:
         originals = baitModels
-        baitModels = simplifyBM(baitModels, baitModelsStats, massTable,
+        baitModels = simplifyBM(mono, baitModels, baitModelsStats, massTable,
                                 uncertainty, NUMS)
 
     # Find sequence

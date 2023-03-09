@@ -57,8 +57,15 @@ def scoreBM(stats):
     _, _, _, LS, _, GSC, GMC, GUM = stats
     return exp(LS/(10+10*GSC+100*GMC+1000*GUM))
 
+# Compute mass of sequence
+def getMass(mono, seq):
+    mass = 0.0
+    for aa in seq:
+        mass += mono[aa]
+    return mass
+
 # Simplify baitModels
-def simplifyBM(originalBaitModels, baitModelsStats, massTable, uncertainty,
+def simplifyBM(mono, originalBaitModels, baitModelsStats, massTable, uncertainty,
                NUMS):
     baitModels = originalBaitModels.copy()
     for i in range(len(baitModels)):
@@ -84,7 +91,8 @@ def simplifyBM(originalBaitModels, baitModelsStats, massTable, uncertainty,
                         if str(abs(mass)) in massTable:
                             l, ncombi = -abs(mass), len(massTable[str(abs(mass))])
 
-                    if firstunk == -1 and ncombi == -1:
+                    # If the unknown mass is small enough
+                    if firstunk == -1 and ncombi == -1 and mass < 57:
                         firstunk = k
                     masses.append(float(mas))
                     mas, k = "", k+1
@@ -99,22 +107,19 @@ def simplifyBM(originalBaitModels, baitModelsStats, massTable, uncertainty,
             lenM, lenS = len(masses), len(sequences)
 
             # Sum masses
+            offset = 0 if firstmass else 1
             if firstunk == lenM-1:
                 masses[firstunk-1] += masses[firstunk]
-                masses[firstunk-1] += truncate(masses[firstunk-1], 2)
+                masses[firstunk-1] += getMass(mono, sequences[firstunk-1+offset])
+                masses[firstunk-1] = truncate(masses[firstunk-1], 2)
                 masses[firstunk] = ''
+                sequences[firstunk-1+offset] = ''
             else:
                 masses[firstunk] += masses[firstunk+1]
+                masses[firstunk] += getMass(mono, sequences[firstunk+offset])
                 masses[firstunk] = truncate(masses[firstunk], 2)
                 masses[firstunk+1] = ''
-
-            # Reverse corresponding sequence
-            if firstunk+1 >= lenS:
-                sequences[firstunk-1] = sequences[firstunk-1][::-1]
-            elif firstmass:
-                sequences[firstunk] = sequences[firstunk][::-1]
-            else:
-                sequences[firstunk+1] = sequences[firstunk+1][::-1]
+                sequences[firstunk+offset] = ''
 
             # Reconstruct new baitModel
             newBaitModel, m = "", min(lenM, lenS)
@@ -228,26 +233,27 @@ def printResults(solvedbaits, numBait, charcount, totalchar, results,
                  fulltable=False):
     FN, TN = sum(results[6:9]), sum(results[9:])
     TP, FP = sum(results[0:3]), sum(results[3:6])
+    f = lambda a, b : a/b if b != 0 else 0
     print("\nRecall\t\t\t : {} / {} ({:.2f} %)".format(TP, TP+FN,
-                                                    (TP/(TP+FN))*100))
+                                                    f(TP, (TP+FN))*100))
     print("Accuracy\t\t : {} / {} ({:.2f} %)".format(TP+TN, TP+FP+TN+FN,
-                                                    ((TP+TN)/(TP+FP+TN+FN))*100))
+                                                    f((TP+TN), (TP+FP+TN+FN))*100))
     print("Precision\t\t : {} / {} ({:.2f} %)".format(TP, TP+FP,
-                                                    (TP/(TP+FP))*100))
+                                                    f(TP, (TP+FP))*100))
     print("Specifity\t\t : {} / {} ({:.2f} %)".format(TN, TN+FP,
-                                                    (TN/(TN+FP))*100))
+                                                    f(TN, (TN+FP))*100))
     print("Sensitivity\t\t : {} / {} ({:.2f} %)".format(TP, TP+FN,
-                                                    (TP/(TP+FN))*100))
+                                                    f(TP, (TP+FN))*100))
     print("Solved baits\t\t : {} / {} ({:.2f} %)".format(solvedbaits,
                                                      numBait,
-                                                     (solvedbaits/numBait)*100))
+                                                     f(solvedbaits, numBait)*100))
     print("# of matching characters : {} / {} ({:.2f} %)".format(charcount,
                                                      totalchar,
-                                                     (charcount/totalchar)*100))
-    print("F-measure\t\t : 2*TP / (2*TP + FP + FN) ({:.2f} %)".format((2*TP/(2*TP+FP+FN))*100))
+                                                     f(charcount, totalchar)*100))
+    print("F-measure\t\t : {:.2f} %".format(f(2*TP, (2*TP+FP+FN))*100))
 
     entries = {"Reconstitution complète" : ["VP (= bait)", "FP (≠ bait)"],
-               "Reconstitution incomplète": ["FN (= bait)", "80% du bait",
+               "Reconstitution incomplète": ["VP incomplet (= bait)", "80% du bait",
                                              "50% du bait", "30% du bait",
                                              "Reste (≠ bait)"]}
     colors = ["green", "dark_orange", "blue", "red"]

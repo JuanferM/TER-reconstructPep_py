@@ -87,7 +87,7 @@ for bait, data in baits.items():
 
     # STEP0 : simplify baitmodels
     if cansimplify:
-        baitModels = simplifyBM(baitModels, baitModelsStats, massTable,
+        baitModels = simplifyBM(mono, baitModels, baitModelsStats, massTable,
                                 uncertainty, NUMS)
 
     # STEP1 : convert baitmodels
