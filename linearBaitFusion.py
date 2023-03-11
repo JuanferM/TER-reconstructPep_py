@@ -9,7 +9,7 @@ infilename, massfilename = sys.argv[1], sys.argv[2]
 
 # ---------------- PARAMETERS -----------------
 verbose = False
-fulltable = True
+fulltable = False
 onlythisbait = ""
 minNumBaits = 1
 maxNumBaits = float('inf') # included
@@ -160,7 +160,6 @@ for bait, data in baits.items():
             # Check if we reached the last character in reverse
             # If so then we're done and we may quit
             while canreverse and j >= 0 and j < lenBaitModels:
-                # print(indices[j], validation[j])
                 if indices[j] <= 0 or validation[j] == invalid:
                     j += 1
                 else:
@@ -213,7 +212,14 @@ for bait, data in baits.items():
     bothWays = reverse and stopped and reconstructFromBoth
     if reverse:
         if bothWays:
-            fusedBait = befRevBait + fusedBait[::-1]
+            seqmass = getMass(mono, befRevBait) + getMass(mono, fusedBait)
+            while seqmass > baitStats[0] + trace and fusedBait != "":
+                seqmass -= mono[fusedBait[-1]]
+                fusedBait = fusedBait.rstrip(fusedBait[-1])
+            if seqmass < baitStats[0] - mono['G'] + trace:
+                fusedBait = befRevBait + '-' + fusedBait[::-1]
+            else:
+                fusedBait = befRevBait + fusedBait[::-1]
         else:
             cond = len(fusedBait) > len(befRevBait)
             fusedBait = fusedBait[::-1] if cond else befRevBait

@@ -61,7 +61,8 @@ def scoreBM(stats):
 def getMass(mono, seq):
     mass = 0.0
     for aa in seq:
-        mass += mono[aa]
+        if aa in mono:
+            mass += mono[aa]
     return mass
 
 # Simplify baitModels
@@ -92,7 +93,7 @@ def simplifyBM(mono, originalBaitModels, baitModelsStats, massTable, uncertainty
                             l, ncombi = -abs(mass), len(massTable[str(abs(mass))])
 
                     # If the unknown mass is small enough
-                    if firstunk == -1 and ncombi == -1 and mass < 57:
+                    if firstunk == -1 and ncombi == -1:
                         firstunk = k
                     masses.append(float(mas))
                     mas, k = "", k+1
@@ -137,7 +138,7 @@ def simplifyBM(mono, originalBaitModels, baitModelsStats, massTable, uncertainty
                     else:
                         newBaitModel += sequences[j]
 
-            # Replace existing
+            # Replace existing and recount unknown
             baitModels[i] = newBaitModel
     return baitModels
 
