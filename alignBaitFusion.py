@@ -87,8 +87,17 @@ for bait, data in baits.items():
 
     # STEP0 : simplify baitmodels
     if cansimplify:
+        originals = baitModels.copy()
         baitModels = simplifyBM(mono, baitModels, baitModelsStats, massTable,
                                 uncertainty, NUMS)
+        for i in range(lenBaitModels):
+            noaminoacid = True
+            for c in baitModels[i]:
+                if c not in "[]"+NUMS:
+                    noaminoacid = False
+                    break
+            if noaminoacid:
+                baitModels[i] = originals[i]
 
     # STEP1 : convert baitmodels
     for i in range(lenBaitModels):
