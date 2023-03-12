@@ -72,6 +72,7 @@ printStats(verbose, trace, uncertainty, numBait, nBait, nBaitOne,
 # ---------------------------------------------
 
 # ------------ FUSION BAIT MODELS -------------
+iteration = 1
 for bait, data in baits.items():
     wholebaitmodel = False
     keepgoing, stopped = True, False
@@ -215,6 +216,10 @@ for bait, data in baits.items():
     # Print result if verbose
     if verbose:
         print("Fusion : ", fusedBait)
+    else:
+        if iteration == 1:
+            print()
+        printProgressBar(iteration, numBait, prefix = 'Progress:', suffix = 'Complete', length=30)
 
     # Some stats
     lenbait = len(bait)
@@ -266,6 +271,7 @@ for bait, data in baits.items():
     totalchar += lenbait
     charcount += numMatch
     solvedbaits += 1 if isequal else 0
+    iteration += 1
 # ---------------------------------------------
 
 # ----------------- RESULTS -------------------

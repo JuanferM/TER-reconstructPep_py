@@ -224,9 +224,9 @@ def printStats(verbose, trace, uncertainty, numBait, nBait, nBaitOne,
     print("# of baits in stats file                 : ", nBait)
     print("# of baits with at least one bait model  : ", nBaitOne)
     print("# of baits with mass dispersion > 1.0 Da : ", massDispCount)
-    print("Min # of baitModels                      : ", minCount)
-    print("Max # of baitModels                      : ", maxCount)
-    print("Avg # of baitModels                      : ", truncate(moyCount, 2))
+    print("Min # of baitModels in stats file        : ", minCount)
+    print("Max # of baitModels in stats file        : ", maxCount)
+    print("Avg # of baitModels in stats file        : ", truncate(moyCount, 2))
     print("# of bait sequence incl. in bait models  : ", totalInBM)
 
 # Print results
@@ -439,3 +439,24 @@ def plotResults(options, lengthBaitModels, respBM):
     plt.title("Proportion de baits retrouvés en fonction du nombre de baitModels")
     plt.savefig("proportion_plot3{}.png".format(options))
 
+# Print iterations progress
+def printProgressBar(iteration, total, prefix = '', suffix = '', decimals = 1, length = 100, fill = '█', printEnd = "\r"):
+    """
+    Call in a loop to create terminal progress bar
+    @params:
+        iteration   - Required  : current iteration (Int)
+        total       - Required  : total iterations (Int)
+        prefix      - Optional  : prefix string (Str)
+        suffix      - Optional  : suffix string (Str)
+        decimals    - Optional  : positive number of decimals in percent complete (Int)
+        length      - Optional  : character length of bar (Int)
+        fill        - Optional  : bar fill character (Str)
+        printEnd    - Optional  : end character (e.g. "\r", "\r\n") (Str)
+    """
+    percent = ("{0:." + str(decimals) + "f}").format(100 * (iteration / float(total)))
+    filledLength = int(length * iteration // total)
+    bar = fill * filledLength + '-' * (length - filledLength)
+    print(f'\r{prefix} |{bar}| {percent}% {suffix}', end = printEnd)
+    # Print New Line on Complete
+    if iteration == total:
+        print()
