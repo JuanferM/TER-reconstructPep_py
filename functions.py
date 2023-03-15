@@ -6,8 +6,10 @@ from rich.console import Console
 import matplotlib.text as mtext
 import matplotlib.pyplot as plt
 
-# Used to generate plots
 class LegendTitle(object):
+    """
+    Used to generate plots (see StackOverflow answer at https://stackoverflow.com/a/38486135)
+    """
     def __init__(self, text_props=None):
         self.text_props = text_props or {}
         super(LegendTitle, self).__init__()
@@ -18,10 +20,13 @@ class LegendTitle(object):
         handlebox.add_artist(title)
         return title
 
-# truncate to `decimals` decimals
 def truncate(number, decimals=0):
     """
     Returns a value truncated to a specific number of decimal places.
+    @params:
+        number      - Required  : number to truncate (Float)
+        decimals    - Optional  : positive number of decimals places (Int)
+    @return truncated value of number
     """
     if not isinstance(decimals, int):
         raise TypeError("decimal places must be an integer.")
@@ -33,8 +38,9 @@ def truncate(number, decimals=0):
     factor = 10.0 ** decimals
     return trunc(number * factor) / factor
 
-# Compare bait with fusedBait
-def compare(bait, fusedBait, bothWays=False):
+def compare(bait, fusedBait):
+    # TODO longest common contiguous subsequence
+    bothWays = True
     same, i, lasteq = 0, 0, -1
     lenBait, lenFusedBait = len(bait), len(fusedBait)
     while i < lenBait and i < lenFusedBait:
@@ -52,23 +58,52 @@ def compare(bait, fusedBait, bothWays=False):
     # Also return the number of equal characters
     return (same == lenBait and same == lenFusedBait), same
 
-# Compute score for a baitModel
 def scoreBM(stats):
+    """
+    Compute score for a baitModel
+    @params:
+        stats       - Required  : stats on the given baitModel (stats should be
+                                  stored in a tuple, see function readStatsFile)
+    @return the score of the baitModel
+    """
     _, _, _, LS, _, GSC, GMC, GUM = stats
     return exp(LS/(10+10*GSC+100*GMC+1000*GUM))
 
-# Compute mass of sequence
-def getMass(mono, seq):
+def getMass(mono, sequence):
+    """
+    Compute mass of sequence
+    @params:
+        mono        - Required  : dictionary with single amino acid as key and
+                                  the mass of the given amino acid as value (Dict)
+        sequence    - Required  : the sequence of amino acids (Str)
+    @return the mass of the sequence
+    """
     mass = 0.0
-    for aa in seq:
+    for aa in sequence:
         if aa in mono:
             mass += mono[aa]
     return mass
 
-# Simplify baitModels
-def simplifyBM(mono, originalBaitModels, baitModelsStats, massTable, uncertainty,
-               NUMS):
+def simplifyBM(mono, originalBaitModels, baitModelsStats, massTable, uncertainty):
+    """
+    Simplify baitModels
+    @params:
+        mono                - Required  : dictionary with single amino acid as key and
+                                          the mass of the given amino acid as
+                                          value (Dict)
+        originalBaitModels  - Required  : the original baitModels (Str List)
+        baitModelStats      - Required  : stats of all the baitModels [see readStatsFile]
+                                          (Int Tuple)
+        massTable           - Required  : mass table [see readMassTable] (Dict)
+        uncertainty         - Required  : error margin when looking up a mass
+                                          in the mass table (Float)
+    @return simplified baitModels [if the process can't be applied, e.g.
+            a baitModel with no unknown mass, the original baitModel is
+            returned] (Str List)
+    """
+    NUMS = "-.0123456789"
     baitModels = originalBaitModels.copy()
+
     for i in range(len(baitModels)):
         # If there is more than one unknown mass in the BM
         if baitModelsStats[i][7] > 1:
@@ -76,6 +111,7 @@ def simplifyBM(mono, originalBaitModels, baitModelsStats, massTable, uncertainty
             firstmass, masses, sequences = False, [], []
             seq, mas = "", ""
 
+            # First read the different subsequences and masses
             for c in baitModels[i]:
                 if j == 0 and c == '[':
                     firstmass = True
@@ -107,7 +143,8 @@ def simplifyBM(mono, originalBaitModels, baitModelsStats, massTable, uncertainty
                 masses.append(float(mas))
             lenM, lenS = len(masses), len(sequences)
 
-            # Sum masses
+            # If a mass is unknown in the table mass, sum that mass with the
+            # next (or previous) mass
             offset = 0 if firstmass else 1
             if firstunk == lenM-1:
                 masses[firstunk-1] += masses[firstunk]
@@ -138,24 +175,38 @@ def simplifyBM(mono, originalBaitModels, baitModelsStats, massTable, uncertainty
                     else:
                         newBaitModel += sequences[j]
 
-            # Replace existing and recount unknown
+            # Replace existing baitModel with the new version
             baitModels[i] = newBaitModel
     return baitModels
 
-# Make stats table
 def make_table(color="", showline=False, showheader=True):
+    """
+    Utility function to build stats table (see printResults)
+    """
     params = {"padding": (0,1,0,1), "pad_edge": False, "expand": True,
               "style": color, "header_style": "bold " + color,
               "show_edge": False, "show_lines": showline,
               "show_header": showheader, "box": box.ASCII_DOUBLE_HEAD}
     return Table(**params)
 
-# Add stats table's column
 def add_column(table, text, justify="center", color=""):
+    """
+    Utility function to add column to stats table (see printResults)
+    """
     table.add_column(text, justify=justify, style=color)
 
-# Fill results array according to booleans
 def fillResults(R, inBM, wholebaitmodel):
+    """
+    Utility function to fill results array according to booleans
+    @params:
+        R               - Required  : results array (Int List)
+        inBM            - Required  : True if the bait is in the baitModels
+                                      (Bool)
+        wholebaitmodel  - Required  : True if a sequence without any mass that
+                                      is different from the bait is in the
+                                      baitModels (Bool)
+    @return results array (Int List)
+    """
     # bait sequence is amongst the baitmodels
     if inBM:
         R[0] += 1
@@ -168,9 +219,18 @@ def fillResults(R, inBM, wholebaitmodel):
         R[2] += 1
     return R
 
-# Read stats file
 def readStatsFile(fname, minNumBaits=0, maxNumBaits=float('inf')):
-    print("Reading stats file...")
+    """
+    Read stats file
+    @params:
+        fname           - Required  : Path to the stats file (Str)
+        minNumBaits     - Optional  : Only load baits with at least minNumBaits
+                                      baitModels (Int)
+        maxNumBaits     - Optional  : Only load baits with at most maxNumBaits
+                                      baitModels (Int)
+    @return statistics on file and a dictionary with baits as key and all the
+    data about each baits as value (Tuple)
+    """
     numBait, totalInBM, baits = 0, 0, {}
     with open(fname, 'r') as file:
         i, rows = 1, file.read().split('\n')
@@ -194,12 +254,17 @@ def readStatsFile(fname, minNumBaits=0, maxNumBaits=float('inf')):
                 numBait += 1
                 totalInBM += 1 if bait in baitModels else 0
                 baits[bait] = (baitModels, baitStats, baitModelsStats)
-    print("Done\n")
-    return nBait, nBaitOne, numBait, totalInBM, baits, massDispCount, minCount, maxCount, moyCount
+    return baits, nBait, nBaitOne, numBait, totalInBM, massDispCount, minCount, maxCount, moyCount
 
-# Read mass table
 def readMassTable(fname):
-    print("Reading mass table...")
+    """
+    Read mass table csv file
+    @params:
+        fname           - Required  : Path to the mass table csv file (Str)
+    @return dictionary with mass as key and a list of all possible combinations
+            of up to eight amino acids which mass is equal to the key as value
+            (Dict)
+    """
     massTable = {}
     with open(fname, 'r') as file:
         reader = csv.reader(file, delimiter=',')
@@ -211,12 +276,13 @@ def readMassTable(fname):
                     if combi != '':
                         massTable[row[0]].append(combi)
             numrow += 1
-    print("Done\n")
     return massTable
 
-# Print file statistics
 def printStats(verbose, trace, uncertainty, numBait, nBait, nBaitOne,
                massDispCount, minCount, maxCount, moyCount, totalInBM):
+    """
+    Print file statistics
+    """
     print("Verbose                                  : ", verbose)
     print("Trace                                    : ", trace, " Da")
     print("Uncertainty                              : ", uncertainty, " Da")
@@ -229,13 +295,22 @@ def printStats(verbose, trace, uncertainty, numBait, nBait, nBaitOne,
     print("Avg # of baitModels in stats file        : ", truncate(moyCount, 2))
     print("# of bait sequence incl. in bait models  : ", totalInBM)
 
-# Print results
-def printResults(solvedbaits, numBait, charcount, totalchar, results,
-                 fulltable=False):
+def printResults(solvedbaits, numBait, results, fulltable=False):
+    """
+    Print results of the fusion of the baitModels
+    @params:
+        solvedbaits     - Required  : Number of solved baits (Int)
+        numBait         - Required  : Total number of baits (Int)
+        results         - Required  : Results obtained with method
+                                      [look for "# Some stats" in main file]
+                                      (Int List)
+        fulltable       - Optional  : Print table with all details or not (Bool)
+    """
     FN, TN = sum(results[6:9]), sum(results[9:])
     TP, FP = sum(results[0:3]), sum(results[3:6])
     f = lambda a, b : a/b if b != 0 else 0
-    print("\nRecall\t\t\t : {} / {} ({:.2f} %)".format(TP, TP+FN,
+    print("\nF-measure\t\t : {:.2f} %".format(f(2*TP, (2*TP+FP+FN))*100))
+    print("Recall\t\t\t : {} / {} ({:.2f} %)".format(TP, TP+FN,
                                                     f(TP, (TP+FN))*100))
     print("Accuracy\t\t : {} / {} ({:.2f} %)".format(TP+TN, TP+FP+TN+FN,
                                                     f((TP+TN), (TP+FP+TN+FN))*100))
@@ -248,10 +323,6 @@ def printResults(solvedbaits, numBait, charcount, totalchar, results,
     print("Solved baits\t\t : {} / {} ({:.2f} %)".format(solvedbaits,
                                                      numBait,
                                                      f(solvedbaits, numBait)*100))
-    print("# of matching characters : {} / {} ({:.2f} %)".format(charcount,
-                                                     totalchar,
-                                                     f(charcount, totalchar)*100))
-    print("F-measure\t\t : {:.2f} %".format(f(2*TP, (2*TP+FP+FN))*100))
 
     entries = {"Reconstitution complète" : ["VP (= bait)", "FP (≠ bait)"],
                "Reconstitution incomplète": ["VP incomplet (= bait)", "80% du bait",
@@ -307,8 +378,16 @@ def printResults(solvedbaits, numBait, charcount, totalchar, results,
     console = Console()
     console.print(table)
 
-# Plot resutls
 def plotResults(options, lengthBaitModels, respBM):
+    """
+    Plot results
+    @params:
+        options             - Required  : Options of the algorithm [see PLOTS
+                                          section in main file] (Str)
+        lengthBaitModels    - Required  : All numbers of baitModels (Int List)
+        respBM              - Required  : Results for baits per number of
+                                          baitModels (Int List)
+    """
     # First plot
     lab = ["baits retrouvés", "baits non retrouvés"]
     leg2 = ["nombre de baits", ""] + lab + [""] + lab
@@ -439,10 +518,9 @@ def plotResults(options, lengthBaitModels, respBM):
     plt.title("Proportion de baits retrouvés en fonction du nombre de baitModels")
     plt.savefig("proportion_plot3{}.png".format(options))
 
-# Print iterations progress
-def printProgressBar(iteration, total, prefix = '', suffix = '', decimals = 1, length = 100, fill = '█', printEnd = "\r"):
+def printProgressBar(solvedbaits, iteration, total, prefix = '', suffix = '', decimals = 2, length = 30, printEnd = "\r"):
     """
-    Call in a loop to create terminal progress bar
+    Call in a loop to create terminal progress bar (modified version of https://stackoverflow.com/a/34325723)
     @params:
         iteration   - Required  : current iteration (Int)
         total       - Required  : total iterations (Int)
@@ -453,9 +531,11 @@ def printProgressBar(iteration, total, prefix = '', suffix = '', decimals = 1, l
         fill        - Optional  : bar fill character (Str)
         printEnd    - Optional  : end character (e.g. "\r", "\r\n") (Str)
     """
-    percent = ("{0:." + str(decimals) + "f}").format(100 * (iteration / float(total)))
-    filledLength = int(length * iteration // total)
-    bar = fill * filledLength + '-' * (length - filledLength)
+    fillsol, fillit = '█', '▒'
+    percent = ("{0:." + str(decimals) + "f}").format(100 * (solvedbaits / float(total)))
+    solvedLength = int(length * solvedbaits // total)
+    filledLength = int(length * iteration // total) - solvedLength
+    bar = fillsol * solvedLength + fillit * filledLength + '-' * (length - solvedLength - filledLength)
     print(f'\r{prefix} |{bar}| {percent}% {suffix}', end = printEnd)
     # Print New Line on Complete
     if iteration == total:

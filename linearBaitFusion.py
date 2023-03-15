@@ -2,10 +2,12 @@ import sys
 from functions import *
 from math import exp, trunc
 
+# ------------ ARGUMENTS CHECK ----------------
 if len(sys.argv) != 3:
     raise FileNotFoundError('File not found. Please provide the stats filename\
  and the path to the mass table.')
 infilename, massfilename = sys.argv[1], sys.argv[2]
+# ---------------------------------------------
 
 # ---------------- PARAMETERS -----------------
 verbose = False
@@ -19,11 +21,12 @@ canreverse, reconstructFromBoth = True, True
 cansimplify, simplifyBothWays = True, True
 # ---------------------------------------------
 
+# ---------- VARIABLES DEFINITION -------------
 results = [0] * 21
-charcount, totalchar, totalInBM = 0, 0, 0
-nBait, nBaitOne, numBait, solvedbaits = 0, 0, 0, 0
+solvedbaits, totalBaitInBM = 0, 0
+totalBait, totalBaitWithOneBM, numBait = 0, 0, 0
+numBaitWithMassDispersion, minBMcount, maxBMcount, meanBMcount = 0, 0, 0, 0
 histo, baits, massTable, resultsPerBM = {}, {}, {}, {}
-massDispCount, minCount, maxCount, moyCount = 0, 0, 0, 0
 stopAA = "KR"
 NUMS = "-.0123456789"
 mono = {"A" : 71.03,
@@ -48,25 +51,28 @@ mono = {"A" : 71.03,
         "V" : 99.06,
         "U" : 150.95
         }
+# ---------------------------------------------
 
 # ------------- READING STATS FILE ------------
-nBait, nBaitOne, numBait, totalInBM, baits, massDispCount,\
-minCount, maxCount, moyCount = readStatsFile(infilename,
-                                             minNumBaits,
-                                             maxNumBaits)
+print("Reading stats file... ", end='')
+baits, totalBait, totalBaitWithOneBM, numBait, totalBaitInBM, numBaitWithMassDispersion,\
+minBMcount, maxBMcount, meanBMcount = readStatsFile(infilename, minNumBaits, maxNumBaits)
+print("Done\n")
 # ---------------------------------------------
 
 # ------------- READ MASS TABLE ---------------
+print("Reading mass table... ", end='')
 massTable = readMassTable(massfilename)
+print("Done\n")
 # ---------------------------------------------
 
 # --------------- PRINT STATS -----------------
-printStats(verbose, trace, uncertainty, numBait, nBait, nBaitOne,
-           massDispCount, minCount, maxCount, moyCount, totalInBM)
+printStats(verbose, trace, uncertainty, numBait, totalBait, totalBaitWithOneBM,
+           numBaitWithMassDispersion, minBMcount, maxBMcount, meanBMcount, totalBaitInBM)
 # ---------------------------------------------
 
 # ------------ FUSION BAIT MODELS -------------
-iteration = 1
+iteration = 1 # Iteration counter to print progress bar
 for bait, data in baits.items():
     wholebaitmodel = False
     startchar, stopchar = '[', ']'
@@ -74,10 +80,13 @@ for bait, data in baits.items():
     fusedBait, befRevBait, candidate, = "", "", "_"
     baitModels, baitStats, baitModelsStats = data
     lenBaitModels = len(baitModels)
+    originalBaitModels = []
     masses = [0.0 for _ in range(lenBaitModels)]
     indices = [0 for _ in range(lenBaitModels)]
     validation = [valid for _ in range(lenBaitModels)]
-    originals = []
+
+    # If onlythisbait is defined then we only run the algorithm on onlythisbait
+    # if it is found
     if onlythisbait != "" and bait != onlythisbait:
         continue
     if verbose:
@@ -85,9 +94,8 @@ for bait, data in baits.items():
 
     # STEP0 : simplify baitmodels
     if cansimplify:
-        originals = baitModels
-        baitModels = simplifyBM(mono, baitModels, baitModelsStats, massTable,
-                                uncertainty, NUMS)
+        originalBaitModels = baitModels.copy()
+        baitModels = simplifyBM(mono, baitModels, baitModelsStats, massTable, uncertainty)
 
     # Find sequence
     while (candidate not in stopAA or reverse) and keepgoing:
@@ -129,11 +137,14 @@ for bait, data in baits.items():
 
                     if ncombi == 1:
                         combi = massTable[str(-j)][0]
-                        if len(combi) == 1: # excess mass is an amino acid
+                        if len(combi) == 1:
+                            # excess mass is an amino acid so c equals that
+                            # amino acid
                             c, frommass = combi[0], True
                 else:
                     masses[i] = 0.0
 
+            # If c is an amino acid then we can use it as candidate
             if c not in "_[]":
                 if c not in candidates:
                     candidates[c], scoresA[c], scoresB[c] = 0, 0, 0
@@ -141,6 +152,7 @@ for bait, data in baits.items():
                 scoresA[c] += validation[i]
                 scoresB[c] += validation[i]*scoreBM(baitModelsStats[i])
 
+        # Determine who is the elected candidate
         mostpresent, doubt = 0, True
         for k, v in candidates.items():
             doubt = False
@@ -155,7 +167,7 @@ for bait, data in baits.items():
                     sameA = scoresA[k] == scoresA[candidate]
                     sameB = scoresB[k] == scoresB[candidate]
                     doubt = sameA and sameB
-        # No clear candidate
+        # If there is no clear elected candidate
         if candidate not in mono or mostpresent == 0 or doubt:
             j = 0
             # Check if we reached the last character in reverse
@@ -166,9 +178,10 @@ for bait, data in baits.items():
                 else:
                     j = -1
             if canreverse and j == lenBaitModels:
-                keepgoing = False
+                keepgoing = False # we're done
                 break
             elif canreverse and not reverse:
+                # the first pass didn't work out so we start the reverse pass
                 befRevBait = fusedBait
                 reverse, fusedBait = True, ""
                 startchar, stopchar = stopchar, startchar
@@ -176,29 +189,32 @@ for bait, data in baits.items():
                 indices = [len(bm)-1 for bm in baitModels]
                 validation = [valid for _ in range(lenBaitModels)]
                 if cansimplify and not simplifyBothWays:
-                    baitModels = originals
+                    baitModels = originalBaitModels
                 continue
             else:
+                # the reverse pass (2nd pass) didn't work out so the algorithm
+                # is stopped
                 stopped, keepgoing = True, False
                 break
-        fusedBait += candidate # clear candidate
+        # there is a clear elected candidate so we add it to the sequence
+        fusedBait += candidate
 
         # STEP2 : validate baitModels
         for i in range(lenBaitModels):
             if 0 <= indices[i] < len(baitModels[i]):
                 c = baitModels[i][indices[i]]
-                # Come back (previously invalidated but might match now)
+                # Come back (previously invalidated baitModel but it might match now)
                 if c == candidate and abs(masses[i]) <= trace:
                     if validation[i] == invalid:
                         validation[i] = probation
                 else:
                     # excess mass...
                     if masses[i] >= trace:
+                        # we can substract mass of candidate from excess mass
                         if masses[i] - mono[candidate] >= -trace:
-                            # we can substract mass of candidate from excess mass
                             masses[i] -= mono[candidate]
                             masses[i] = truncate(masses[i], 2)
-                        else:
+                        else: # we can't substract mass of candidate so baitModel is invalidated
                             indices[i] = -1
                             validation[i] = invalid
                     elif c in mono and validation[i] == valid: # no match but it's an amino acid
@@ -213,31 +229,40 @@ for bait, data in baits.items():
     bothWays = reverse and stopped and reconstructFromBoth
     if reverse:
         if bothWays:
+            # Compute the mass M1 of the concatenation of the sequences
+            # If that mass is greater than the mean of the baitModels masses by
+            # a margin (M2) then we remove an amino acid from the right
+            # sequence until M1 == M2
             seqmass = getMass(mono, befRevBait) + getMass(mono, fusedBait)
             while seqmass > baitStats[0] + trace and fusedBait != "":
                 seqmass -= mono[fusedBait[-1]]
                 fusedBait = fusedBait.rstrip(fusedBait[-1])
+            # If M1 if less than M2 by at least m(G) (the mass of the smallest
+            # amino acid) then we insert an '-' meaning that there is a gap of
+            # unknown mass in the sequence
             if seqmass < baitStats[0] - mono['G'] + trace:
                 fusedBait = befRevBait + '-' + fusedBait[::-1]
             else:
                 fusedBait = befRevBait + fusedBait[::-1]
         else:
+            # If concatenation is not ON then we return the longest sequence
+            # between the two passes
             cond = len(fusedBait) > len(befRevBait)
             fusedBait = fusedBait[::-1] if cond else befRevBait
 
-    # Print result if verbose
+    # Print result if verbose else print progress bar
     if verbose:
         print("Fusion : ", fusedBait)
     else:
         if iteration == 1:
             print()
-        printProgressBar(iteration, numBait, prefix = 'Progress:', suffix
-             = 'Complete', length=30)
+        printProgressBar(solvedbaits, iteration, numBait, prefix = 'Progress:', suffix
+             = 'Solved')
 
     # Some stats
     lenbait = len(bait)
     inBM = bait in baitModels
-    isequal, numMatch = compare(bait, fusedBait, bothWays)
+    isequal, numMatch = compare(bait, fusedBait)
     if lenBaitModels not in resultsPerBM:
         resultsPerBM[lenBaitModels] = [0] * 11
     if not stopped:
@@ -281,14 +306,12 @@ for bait, data in baits.items():
             resultsPerBM[lenBaitModels][10] += 1
 
     # Totals
-    totalchar += lenbait
-    charcount += numMatch
     solvedbaits += 1 if isequal else 0
     iteration += 1
 # ---------------------------------------------
 
 # ----------------- RESULTS -------------------
-printResults(solvedbaits, numBait, charcount, totalchar, results, fulltable)
+printResults(solvedbaits, numBait, results, fulltable)
 # ---------------------------------------------
 
 # ------------------- PLOTS -------------------

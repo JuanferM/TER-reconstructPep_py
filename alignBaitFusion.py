@@ -5,10 +5,12 @@ from functions import *
 import subprocess as sbp
 from math import trunc, ceil
 
+# ------------ ARGUMENTS CHECK ----------------
 if len(sys.argv) != 3:
     raise FileNotFoundError('File not found. Please provide the stats filename\
  and the path to the mass table.')
 infilename, massfilename = sys.argv[1], sys.argv[2]
+# ---------------------------------------------
 
 # ---------------- PARAMETERS -----------------
 verbose = False
@@ -23,11 +25,12 @@ clustalopt = "-QUICKTREE -MATRIX=GONNET -GAPOPEN=5 -GAPEXT=1 -NOHGAP \
 muscleopt = ""
 # ---------------------------------------------
 
+# ---------- VARIABLES DEFINITION -------------
 results = [0] * 21
-charcount, totalchar, totalInBM = 0, 0, 0
-nBait, nBaitOne, numBait, solvedbaits = 0, 0, 0, 0
+solvedbaits, totalBaitInBM = 0, 0
+totalBait, totalBaitWithOneBM, numBait = 0, 0, 0
+numBaitWithMassDispersion, minBMcount, maxBMcount, meanBMcount = 0, 0, 0, 0
 histo, baits, massTable, resultsPerBM = {}, {}, {}, {}
-massDispCount, minCount, maxCount, moyCount = 0, 0, 0, 0
 stopAA = "KR"
 NUMS = "-.0123456789"
 mono = {"A" : 71.03,
@@ -54,33 +57,40 @@ mono = {"A" : 71.03,
         }
 clustalcmd = "./clustalw2 -ALIGN -QUIET -OUTPUT=FASTA"
 musclecmd = "./muscle3.8"
+# ---------------------------------------------
 
 # ------------- READING STATS FILE ------------
-nBait, nBaitOne, numBait, totalInBM, baits, massDispCount,\
-minCount, maxCount, moyCount = readStatsFile(infilename,
-                                             minNumBaits,
-                                             maxNumBaits)
+print("Reading stats file... ", end='')
+baits, totalBait, totalBaitWithOneBM, numBait, totalBaitInBM, numBaitWithMassDispersion,\
+minBMcount, maxBMcount, meanBMcount = readStatsFile(infilename, minNumBaits, maxNumBaits)
+print("Done\n")
 # ---------------------------------------------
 
 # ------------- READ MASS TABLE ---------------
+print("Reading mass table... ", end='')
 massTable = readMassTable(massfilename)
+print("Done\n")
 # ---------------------------------------------
 
 # --------------- PRINT STATS -----------------
-printStats(verbose, trace, uncertainty, numBait, nBait, nBaitOne,
-           massDispCount, minCount, maxCount, moyCount, totalInBM)
+printStats(verbose, trace, uncertainty, numBait, totalBait, totalBaitWithOneBM,
+           numBaitWithMassDispersion, minBMcount, maxBMcount, meanBMcount, totalBaitInBM)
 # ---------------------------------------------
 
 # ------------ FUSION BAIT MODELS -------------
-iteration = 1
+iteration = 1 # Iteration counter to print progress bar
 for bait, data in baits.items():
     wholebaitmodel = False
     keepgoing, stopped = True, False
     fusedBait, candidate = "", "_"
     baitModels, baitStats, baitModelsStats = data
     lenBaitModels = len(baitModels)
-    indices = [0 for _ in range(lenBaitModels)]
+    originalBaitModels = []
     convertedBaitModels = []
+    indices = [0 for _ in range(lenBaitModels)]
+
+    # If onlythisbait is defined then we only run the algorithm on onlythisbait
+    # if it is found
     if onlythisbait != "" and bait != onlythisbait:
         continue
     if verbose:
@@ -88,9 +98,15 @@ for bait, data in baits.items():
 
     # STEP0 : simplify baitmodels
     if cansimplify:
-        originals = baitModels.copy()
-        baitModels = simplifyBM(mono, baitModels, baitModelsStats, massTable,
-                                uncertainty, NUMS)
+        originalBaitModels = baitModels.copy()
+        baitModels = simplifyBM(mono, baitModels, baitModelsStats, massTable, uncertainty)
+        # For some cases simplifying will convert a baitModel into one big mass
+        # (e.g. [14.15]G[140.3] ==> [211.47]). In such cases, if we try to
+        # replace the mass by '-' we'll have a sequence with no amino acids and
+        # straight '-'s (e.g. ------). Feeding such a sequence with no amino acid
+        # to Clustal or MUSCLE will ALWAYS THROW AN ERROR. So to avoid that
+        # problem we revert the baitModel to its unsimplified form if such
+        # a case is encountered. NB : this is done only for method 2 (alignBaitFusion.py)
         for i in range(lenBaitModels):
             noaminoacid = True
             for c in baitModels[i]:
@@ -98,9 +114,10 @@ for bait, data in baits.items():
                     noaminoacid = False
                     break
             if noaminoacid:
-                baitModels[i] = originals[i]
+                baitModels[i] = originalBaitModels[i]
 
     # STEP1 : convert baitmodels
+    # Each mass is replaced by a certain number of '-' (see details below)
     for i in range(lenBaitModels):
         converted, currentMass = "", ""
         for c in baitModels[i]:
@@ -174,12 +191,14 @@ for bait, data in baits.items():
             if 0 <= indices[i] < len(sequences[i]):
                 c = sequences[i][indices[i]]
 
+                # If c is an amino acid then we can use it as candidate
                 if c not in "_[]":
                     if c not in candidates:
                         candidates[c], scoresB[c] = 0, 0
                     candidates[c] += 0.01 if c == '-' else 1
                     scoresB[c] += scoreBM(baitModelsStats[i])
 
+        # Determine who is the elected candidate
         mostpresent, doubt = 0, True
         for k, v in candidates.items():
             doubt = False
@@ -191,16 +210,18 @@ for bait, data in baits.items():
                 else:
                     doubt = scoresB[k] == scoresB[candidate]
 
-        # - is candidate...
+        # - is candidate mark as stopped but ignore - and keep going
         if candidate == '-':
-            # pass
-            stopped = True # Mark as stopped but ignore - and keep going
-        # No clear candidate
+            stopped = True
+        # If there is no clear elected candidate
         elif candidate not in mono or mostpresent == 0 or doubt:
             stopped, keepgoing = True, False
             break
+
+        # clear elected candidate
         if candidate != '-':
-            fusedBait += candidate # clear candidate
+            fusedBait += candidate
+        # advance cursors
         for i in range(lenBaitModels):
             indices[i] += 1
 
@@ -213,18 +234,19 @@ for bait, data in baits.items():
     if os.path.exists(IN+".dnd"):
         os.remove(IN+".dnd")
 
-    # Print result if verbose
+    # Print result if verbose else print progress bar
     if verbose:
         print("Fusion : ", fusedBait)
     else:
         if iteration == 1:
             print()
-        printProgressBar(iteration, numBait, prefix = 'Progress:', suffix = 'Complete', length=30)
+        printProgressBar(solvedbaits, iteration, numBait, prefix = 'Progress:',
+                         suffix = 'Solved')
 
     # Some stats
     lenbait = len(bait)
     inBM = bait in baitModels
-    isequal, numMatch = compare(bait, fusedBait, True)
+    isequal, numMatch = compare(bait, fusedBait)
     if lenBaitModels not in resultsPerBM:
         resultsPerBM[lenBaitModels] = [0] * 11
     if not stopped:
@@ -268,14 +290,12 @@ for bait, data in baits.items():
             resultsPerBM[lenBaitModels][10] += 1
 
     # Totals
-    totalchar += lenbait
-    charcount += numMatch
     solvedbaits += 1 if isequal else 0
     iteration += 1
 # ---------------------------------------------
 
 # ----------------- RESULTS -------------------
-printResults(solvedbaits, numBait, charcount, totalchar, results, fulltable)
+printResults(solvedbaits, numBait, results, fulltable)
 # ---------------------------------------------
 
 # ------------------- PLOTS -------------------
