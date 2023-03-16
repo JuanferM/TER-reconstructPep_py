@@ -39,24 +39,41 @@ def truncate(number, decimals=0):
     return trunc(number * factor) / factor
 
 def compare(bait, fusedBait):
-    # TODO longest common contiguous subsequence
-    bothWays = True
-    same, i, lasteq = 0, 0, -1
-    lenBait, lenFusedBait = len(bait), len(fusedBait)
-    while i < lenBait and i < lenFusedBait:
-        if bait[i] == fusedBait[i]:
-            same += 1
-            lasteq = i
-        i = i+1
+    """
+    Compute longest common contiguous subsequence to determine if the two
+    sequences are the same and how much character they have in common (see
+    https://stackoverflow.com/a/14044116)
+    @params:
+        bait        - Required  : sequence of the bait (Str)
+        fusedBait   - Required  : sequence obtained with algorithm (Str)
+    @return a Tuple (b, c) where b is a Boolean set to True if the two
+    sequences are the same (False otherwise) and c is the number of characters
+    that the two sequences have in common.
+    """
+    A, B = bait, fusedBait
+    lenA, lenB = len(A), len(B)
+    n = (lenA if lenA > lenB else lenB) + 1
+    LCCS = [[0]*n for _ in range(n)]
 
-    j, k = lenBait-1, lenFusedBait-1
-    while bothWays and j > lasteq and k >= 0:
-        same += 1 if bait[j] == fusedBait[k] else 0
-        j, k = j-1, k-1
+    for _ in range(lenA, n-1):
+        A += '-'
+    for _ in range(lenB, n-1):
+        B += '-'
 
-    # Return True if the sequences are the same (false otherwise)
-    # Also return the number of equal characters
-    return (same == lenBait and same == lenFusedBait), same
+    r, x, y = -1, -1, -1
+
+    for i in range(1, lenA+1):
+        for j in range(1, lenB+1):
+            if A[i-1] == B[i-1]:
+                LCCS[i][j] = LCCS[i-1][j-1]+1
+            else:
+                LCCS[i][j] = 0
+
+            if LCCS[i][j] > r:
+                x, y = i, j
+                r = LCCS[i][j]
+
+    return (A == B), r
 
 def scoreBM(stats):
     """

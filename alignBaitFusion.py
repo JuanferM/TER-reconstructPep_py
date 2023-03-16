@@ -59,16 +59,16 @@ clustalcmd = "./clustalw2 -ALIGN -QUIET -OUTPUT=FASTA"
 musclecmd = "./muscle3.8"
 # ---------------------------------------------
 
+# ------------- READ MASS TABLE ---------------
+print("Reading mass table... ", end='')
+massTable = readMassTable(massfilename)
+print("Done")
+# ---------------------------------------------
+
 # ------------- READING STATS FILE ------------
 print("Reading stats file... ", end='')
 baits, totalBait, totalBaitWithOneBM, numBait, totalBaitInBM, numBaitWithMassDispersion,\
 minBMcount, maxBMcount, meanBMcount = readStatsFile(infilename, minNumBaits, maxNumBaits)
-print("Done\n")
-# ---------------------------------------------
-
-# ------------- READ MASS TABLE ---------------
-print("Reading mass table... ", end='')
-massTable = readMassTable(massfilename)
 print("Done\n")
 # ---------------------------------------------
 

@@ -53,16 +53,16 @@ mono = {"A" : 71.03,
         }
 # ---------------------------------------------
 
+# ------------- READ MASS TABLE ---------------
+print("Reading mass table... ", end='')
+massTable = readMassTable(massfilename)
+print("Done")
+# ---------------------------------------------
+
 # ------------- READING STATS FILE ------------
 print("Reading stats file... ", end='')
 baits, totalBait, totalBaitWithOneBM, numBait, totalBaitInBM, numBaitWithMassDispersion,\
 minBMcount, maxBMcount, meanBMcount = readStatsFile(infilename, minNumBaits, maxNumBaits)
-print("Done\n")
-# ---------------------------------------------
-
-# ------------- READ MASS TABLE ---------------
-print("Reading mass table... ", end='')
-massTable = readMassTable(massfilename)
 print("Done\n")
 # ---------------------------------------------
 
