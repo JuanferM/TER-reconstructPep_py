@@ -64,7 +64,7 @@ def compare(bait, fusedBait):
 
     for i in range(1, lenA+1):
         for j in range(1, lenB+1):
-            if A[i-1] == B[i-1]:
+            if A[i-1] == B[j-1]:
                 LCCS[i][j] = LCCS[i-1][j-1]+1
             else:
                 LCCS[i][j] = 0
