@@ -71,7 +71,6 @@ printStats(verbose, trace, uncertainty, numBait, totalBait, totalBaitWithOneBM,
            numBaitWithMassDispersion, minBMcount, maxBMcount, meanBMcount, totalBaitInBM)
 # ---------------------------------------------
 
-atleast5aa = 0
 # ------------ FUSION BAIT MODELS -------------
 iteration = 1 # Iteration counter to print progress bar
 for bait, data in baits.items():
@@ -264,8 +263,6 @@ for bait, data in baits.items():
     lenbait = len(bait)
     inBM = bait in baitModels
     isequal, numMatch = compare(bait, fusedBait)
-    if not isequal and numMatch >= 5:
-        atleast5aa += 1
     if lenBaitModels not in resultsPerBM:
         resultsPerBM[lenBaitModels] = [0] * 11
     if not stopped:
@@ -314,7 +311,10 @@ for bait, data in baits.items():
 # ---------------------------------------------
 
 # ----------------- RESULTS -------------------
-printResults(solvedbaits, numBait, results, fulltable)
+if solvedbaits != 0:
+    printResults(solvedbaits, numBait, results, fulltable)
+else:
+    print("\nNO SOLUTION!")
 # ---------------------------------------------
 
 # ------------------- PLOTS -------------------
@@ -332,8 +332,7 @@ if cansimplify:
         options += "simplif gauche-droite"
 options += ")" if canreverse or cansimplify else ""
 
-lengthBaitModels, respBM = tuple(zip(*[t[0] for t in sorted(zip(resultsPerBM.items()))]))
-plotResults(options, lengthBaitModels, respBM)
+if solvedbaits != 0:
+    lengthBaitModels, respBM = tuple(zip(*[t[0] for t in sorted(zip(resultsPerBM.items()))]))
+    plotResults(options, lengthBaitModels, respBM)
 # ---------------------------------------------
-
-print(atleast5aa)

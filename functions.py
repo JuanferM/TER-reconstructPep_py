@@ -312,35 +312,16 @@ def printStats(verbose, trace, uncertainty, numBait, nBait, nBaitOne,
     print("Avg # of baitModels in stats file        : ", truncate(moyCount, 2))
     print("# of bait sequence incl. in bait models  : ", totalInBM)
 
-def printResults(solvedbaits, numBait, results, fulltable=False):
+def getReconstructionTable(results, fulltable=False):
     """
-    Print results of the fusion of the baitModels
+    Print table according to the results and the fact that the algorithm was
+    stopped or not [see printResults]
     @params:
-        solvedbaits     - Required  : Number of solved baits (Int)
-        numBait         - Required  : Total number of baits (Int)
         results         - Required  : Results obtained with method
                                       [look for "# Some stats" in main file]
                                       (Int List)
         fulltable       - Optional  : Print table with all details or not (Bool)
     """
-    FN, TN = sum(results[6:9]), sum(results[9:])
-    TP, FP = sum(results[0:3]), sum(results[3:6])
-    f = lambda a, b : a/b if b != 0 else 0
-    print("\nF-measure\t\t : {:.2f} %".format(f(2*TP, (2*TP+FP+FN))*100))
-    print("Recall\t\t\t : {} / {} ({:.2f} %)".format(TP, TP+FN,
-                                                    f(TP, (TP+FN))*100))
-    print("Accuracy\t\t : {} / {} ({:.2f} %)".format(TP+TN, TP+FP+TN+FN,
-                                                    f((TP+TN), (TP+FP+TN+FN))*100))
-    print("Precision\t\t : {} / {} ({:.2f} %)".format(TP, TP+FP,
-                                                    f(TP, (TP+FP))*100))
-    print("Specifity\t\t : {} / {} ({:.2f} %)".format(TN, TN+FP,
-                                                    f(TN, (TN+FP))*100))
-    print("Sensitivity\t\t : {} / {} ({:.2f} %)".format(TP, TP+FN,
-                                                    f(TP, (TP+FN))*100))
-    print("Solved baits\t\t : {} / {} ({:.2f} %)".format(solvedbaits,
-                                                     numBait,
-                                                     f(solvedbaits, numBait)*100))
-
     entries = {"Reconstitution complète" : ["VP (= bait)", "FP (≠ bait)"],
                "Reconstitution incomplète": ["VP incomplet (= bait)", "80% du bait",
                                              "50% du bait", "30% du bait",
@@ -391,7 +372,39 @@ def printResults(solvedbaits, numBait, results, fulltable=False):
         columns.append(mergetable)
     table.add_row(*columns)
 
+    return table
+
+def printResults(solvedbaits, numBait, results, fulltable=False):
+    """
+    Print results of the fusion of the baitModels
+    @params:
+        solvedbaits     - Required  : Number of solved baits (Int)
+        numBait         - Required  : Total number of baits (Int)
+        results         - Required  : Results obtained with method
+                                      [look for "# Some stats" in main file]
+                                      (Int List)
+        fulltable       - Optional  : Print table with all details or not (Bool)
+    """
+    FN, TN = sum(results[6:9]), sum(results[9:])
+    TP, FP = sum(results[0:3]), sum(results[3:6])
+    f = lambda a, b : a/b if b != 0 else 0
+    print("\nF-measure\t\t : {:.2f} %".format(f(2*TP, (2*TP+FP+FN))*100))
+    print("Recall\t\t\t : {} / {} ({:.2f} %)".format(TP, TP+FN,
+                                                    f(TP, (TP+FN))*100))
+    print("Accuracy\t\t : {} / {} ({:.2f} %)".format(TP+TN, TP+FP+TN+FN,
+                                                    f((TP+TN), (TP+FP+TN+FN))*100))
+    print("Precision\t\t : {} / {} ({:.2f} %)".format(TP, TP+FP,
+                                                    f(TP, (TP+FP))*100))
+    print("Specifity\t\t : {} / {} ({:.2f} %)".format(TN, TN+FP,
+                                                    f(TN, (TN+FP))*100))
+    print("Sensitivity\t\t : {} / {} ({:.2f} %)".format(TP, TP+FN,
+                                                    f(TP, (TP+FN))*100))
+    print("Solved baits\t\t : {} / {} ({:.2f} %)".format(solvedbaits,
+                                                     numBait,
+                                                     f(solvedbaits, numBait)*100))
+
     print()
+    table = getReconstructionTable(results, fulltable)
     console = Console()
     console.print(table)
 
