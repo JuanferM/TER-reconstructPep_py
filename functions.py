@@ -447,6 +447,8 @@ def printResults(solvedbaits, numBait, results, resulttable=True, fulltable=Fals
         results         - Required  : Results obtained with method
                                       [look for "# Some stats" in main file]
                                       (Int List)
+        resulttable     - Optional  : If True prints table discarding the fact
+                                      that the algorithm was stopped or not (Bool)
         fulltable       - Optional  : Print table with all details or not (Bool)
     """
     FN, TN = sum(results[15:18]), sum(results[18:])
