@@ -1,3 +1,4 @@
+import os
 import sys
 from functions import *
 from math import exp, trunc
@@ -10,19 +11,30 @@ infilename, massfilename = sys.argv[1], sys.argv[2]
 # ---------------------------------------------
 
 # ---------------- PARAMETERS -----------------
+# Display settings
 verbose = False
 fulltable = True
-onlythisbait = ""
-minNumBaits = 1
-maxNumBaits = float('inf') # included
-uncertainty, trace = 0.01, 1
+resulttable = True
+
+# Error margins and baitModels weights
+trace = 1
+uncertainty = 0.01
 valid, probation, invalid = 4, 1, 0
-canreverse, reconstructFromBoth = True, True
-cansimplify, simplifyBothWays = True, True
+
+# Method options
+secondpass = True
+concatenation = True
+cansimplify = True
+simplifyBothWays = True
+
+# Settings about baitModels
+onlythisbait = ""
+minNumBaits = 2
+maxNumBaits = float('inf')
 # ---------------------------------------------
 
 # ---------- VARIABLES DEFINITION -------------
-results = [0] * 21
+results = [0] * 30
 solvedbaits, totalBaitInBM = 0, 0
 totalBait, totalBaitWithOneBM, numBait = 0, 0, 0
 numBaitWithMassDispersion, minBMcount, maxBMcount, meanBMcount = 0, 0, 0, 0
@@ -172,15 +184,15 @@ for bait, data in baits.items():
             j = 0
             # Check if we reached the last character in reverse
             # If so then we're done and we may quit
-            while canreverse and j >= 0 and j < lenBaitModels:
+            while secondpass and j >= 0 and j < lenBaitModels:
                 if indices[j] <= 0 or validation[j] == invalid:
                     j += 1
                 else:
                     j = -1
-            if canreverse and j == lenBaitModels:
+            if secondpass and j == lenBaitModels:
                 keepgoing = False # we're done
                 break
-            elif canreverse and not reverse:
+            elif secondpass and not reverse:
                 # the first pass didn't work out so we start the reverse pass
                 befRevBait = fusedBait
                 reverse, fusedBait = True, ""
@@ -226,7 +238,7 @@ for bait, data in baits.items():
                     indices[i] += -1 if reverse else 1
 
     # STEP3: determine best sequence computed
-    bothWays = reverse and stopped and reconstructFromBoth
+    bothWays = reverse and stopped and concatenation
     if reverse:
         if bothWays:
             # Compute the mass M1 of the concatenation of the sequences
@@ -254,56 +266,59 @@ for bait, data in baits.items():
     if verbose:
         print("Fusion : ", fusedBait)
     else:
-        if iteration == 1:
-            print()
-        printProgressBar(solvedbaits, iteration, numBait, prefix = 'Progress:', suffix
-             = 'Solved')
+        # Print only if not redirecting to file
+        if sys.stdout.isatty():
+            if iteration == 1:
+                print()
+            printProgressBar(solvedbaits, iteration, numBait, prefix = 'Progress:', suffix
+                 = 'Solved')
 
     # Some stats
     lenbait = len(bait)
     inBM = bait in baitModels
     isequal, numMatch = compare(bait, fusedBait)
     if lenBaitModels not in resultsPerBM:
-        resultsPerBM[lenBaitModels] = [0] * 11
+        resultsPerBM[lenBaitModels] = [0] * 8
     if not stopped:
         if isequal:
             resultsPerBM[lenBaitModels][0] += 1
-            resultsPerBM[lenBaitModels][4] += 1
             results[0:3] = fillResults(results[0:3], inBM, wholebaitmodel)
         else:
             ratio = numMatch/lenbait
             resultsPerBM[lenBaitModels][1] += 1
-            resultsPerBM[lenBaitModels][5] += 1 if ratio >= 0.8 else 0
-            resultsPerBM[lenBaitModels][6] += 1 if ratio < 0.8 else 0
-            results[3:6] = fillResults(results[3:6], inBM, wholebaitmodel)
+            if ratio >= 0.8:
+                results[3:6] = fillResults(results[3:6], inBM, wholebaitmodel)
+            elif ratio >= 0.5:
+                results[6:9] = fillResults(results[6:9], inBM, wholebaitmodel)
+            elif ratio >= 0.3:
+                results[9:12] = fillResults(results[9:12], inBM, wholebaitmodel)
+            else:
+                results[12:15] = fillResults(results[12:15], inBM, wholebaitmodel)
     else:
         if isequal:
             resultsPerBM[lenBaitModels][2] += 1
-            resultsPerBM[lenBaitModels][4] += 1
-            results[6:9] = fillResults(results[6:9], inBM, wholebaitmodel)
+            results[15:18] = fillResults(results[15:18], inBM, wholebaitmodel)
         else:
             ratio = numMatch/lenbait
             resultsPerBM[lenBaitModels][3] += 1
-            resultsPerBM[lenBaitModels][5] += 1 if ratio >= 0.8 else 0
-            resultsPerBM[lenBaitModels][6] += 1 if ratio < 0.8 else 0
             if ratio >= 0.8:
-                results[9:12] = fillResults(results[9:12], inBM, wholebaitmodel)
-            elif ratio >= 0.5:
-                results[12:15] = fillResults(results[12:15], inBM, wholebaitmodel)
-            elif ratio >= 0.3:
-                results[15:18] = fillResults(results[15:18], inBM, wholebaitmodel)
-            else:
                 results[18:21] = fillResults(results[18:21], inBM, wholebaitmodel)
+            elif ratio >= 0.5:
+                results[21:24] = fillResults(results[21:24], inBM, wholebaitmodel)
+            elif ratio >= 0.3:
+                results[24:27] = fillResults(results[24:27], inBM, wholebaitmodel)
+            else:
+                results[27:30] = fillResults(results[27:30], inBM, wholebaitmodel)
     if not inBM:
         if isequal:
-            resultsPerBM[lenBaitModels][7] += 1
+            resultsPerBM[lenBaitModels][4] += 1
         else:
-            resultsPerBM[lenBaitModels][8] += 1
+            resultsPerBM[lenBaitModels][5] += 1
     else:
         if isequal:
-            resultsPerBM[lenBaitModels][9] += 1
+            resultsPerBM[lenBaitModels][6] += 1
         else:
-            resultsPerBM[lenBaitModels][10] += 1
+            resultsPerBM[lenBaitModels][7] += 1
 
     # Totals
     solvedbaits += 1 if isequal else 0
@@ -312,25 +327,25 @@ for bait, data in baits.items():
 
 # ----------------- RESULTS -------------------
 if solvedbaits != 0:
-    printResults(solvedbaits, numBait, results, fulltable)
+    printResults(solvedbaits, numBait, results, resulttable, fulltable)
 else:
     print("\nNO SOLUTION!")
 # ---------------------------------------------
 
 # ------------------- PLOTS -------------------
-options = " (" if canreverse or cansimplify else ""
-if canreverse:
-    if reconstructFromBoth:
+options = " (" if secondpass or cansimplify else ""
+if secondpass:
+    if concatenation:
         options += "deux sens"
     else:
         options += "plus inverse"
-options += " + " if canreverse and cansimplify else ""
+options += " + " if secondpass and cansimplify else ""
 if cansimplify:
     if simplifyBothWays:
         options += "simplif deux sens"
     else:
         options += "simplif gauche-droite"
-options += ")" if canreverse or cansimplify else ""
+options += ")" if secondpass or cansimplify else ""
 
 if solvedbaits != 0:
     lengthBaitModels, respBM = tuple(zip(*[t[0] for t in sorted(zip(resultsPerBM.items()))]))

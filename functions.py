@@ -267,7 +267,7 @@ def readStatsFile(fname, minNumBaits=0, maxNumBaits=float('inf')):
                 st = st + list(map(int, [LS, nMass, GSC, GMC, GUM]))
                 baitModelsStats.append(st)
             i += 1
-            if minNumBaits < nBaitModel <= maxNumBaits:
+            if minNumBaits <= nBaitModel <= maxNumBaits:
                 numBait += 1
                 totalInBM += 1 if bait in baitModels else 0
                 baits[bait] = (baitModels, baitStats, baitModelsStats)
@@ -312,6 +312,67 @@ def printStats(verbose, trace, uncertainty, numBait, nBait, nBaitOne,
     print("Avg # of baitModels in stats file        : ", truncate(moyCount, 2))
     print("# of bait sequence incl. in bait models  : ", totalInBM)
 
+def getResultsTable(results, fulltable=False):
+    """
+    Print table according to the results [see printResults]
+    @params:
+        results         - Required  : Results obtained with method
+                                      [look for "# Some stats" in main file]
+                                      (Int List)
+        fulltable       - Optional  : Print table with all details or not (Bool)
+    """
+    entries = {"Baits reconstitués" : ["= bait"],
+               "Baits non reconstitués" : ["80% du bait", "50% du bait",
+                           "30% du bait", "Reste (≠ bait)"]}
+    table = Table(title="Statistiques résultats baitFusion", padding=(0,0,0,0),
+                  box=box.ASCII_DOUBLE_HEAD)
+    R = [0] * 15
+    for i in range(15):
+        R[i] = results[i]+results[i+15]
+
+    columns = []
+    idx, symbolIn, symidx = 0, False, -1
+    for entry, subentries in entries.items():
+        subtables = []
+        add_column(table, entry)
+        for subentry in subentries:
+            if not fulltable and "%" in subentry:
+                if not symbolIn:
+                    symbolIn, symidx = True, idx
+                idx += 1
+                continue
+            cl = "green" if (idx == 0) else "red"
+            subtotal = sum(R[idx*3:3+idx*3])
+            subtable = make_table(cl, True)
+            subtable2, subtable3 = make_table(), make_table()
+
+            add_column(subtable, subentry, color=cl)
+            add_column(subtable2, "bait incl.\ndans les\nbaitmodels")
+            add_column(subtable2, "bait non\nincl. dans les\nbaitmodels")
+            add_column(subtable3, "baitmodel ≠\ndu bait sans\nmodification")
+            add_column(subtable3, "reste")
+
+            if not symbolIn:
+                subtable3.add_row(str(R[1+idx*3]), str(R[2+idx*3]))
+                subtable2.add_row(str(R[idx*3]), subtable3)
+            else:
+                subtotal += sum(R[symidx*3:idx*3])
+                subtable3.add_row(str(sum(R[1+symidx*3::3])),
+                                  str(sum(R[2+symidx*3::3])))
+                subtable2.add_row(str(sum(R[symidx*3::3])), subtable3)
+            subtable.add_row(subtable2)
+            subtable.add_row(str(subtotal))
+
+            subtables.append(subtable)
+            idx += 1
+
+        mergetable = make_table(showheader=False)
+        mergetable.add_row(*subtables)
+        columns.append(mergetable)
+    table.add_row(*columns)
+
+    return table
+
 def getReconstructionTable(results, fulltable=False):
     """
     Print table according to the results and the fact that the algorithm was
@@ -322,18 +383,18 @@ def getReconstructionTable(results, fulltable=False):
                                       (Int List)
         fulltable       - Optional  : Print table with all details or not (Bool)
     """
-    entries = {"Reconstitution complète" : ["VP (= bait)", "FP (≠ bait)"],
-               "Reconstitution incomplète": ["VP incomplet (= bait)", "80% du bait",
+    entries = {"Reconstitution complète" : ["VP (= bait)", "80% du bait", "50% du bait",
+                                            "30% du bait", "Reste (≠ bait)"],
+               "Reconstitution incomplète": ["VP (= bait)", "80% du bait",
                                              "50% du bait", "30% du bait",
                                              "Reste (≠ bait)"]}
-    colors = ["green", "dark_orange", "blue", "red"]
-    table = Table(title="Statistiques baitFusion", padding=(0,0,0,0),
+    table = Table(title="Statistiques reconstitution baitFusion", padding=(0,0,0,0),
                   box=box.ASCII_DOUBLE_HEAD)
 
-    idx, lencol = 0, len(colors)
-    symbolIn, symidx = False, -1
     columns = []
+    idx, symbolIn, symidx = 0, False, -1
     for entry, subentries in entries.items():
+        isubentry = 0
         subtables = []
         add_column(table, entry)
         for subentry in subentries:
@@ -342,7 +403,7 @@ def getReconstructionTable(results, fulltable=False):
                     symbolIn, symidx = True, idx
                 idx += 1
                 continue
-            cl = colors[-1] if idx >= lencol else colors[idx]
+            cl = "green" if (isubentry == 0) else "red"
             subtotal = sum(results[idx*3:3+idx*3])
             subtable = make_table(cl, True)
             subtable2, subtable3 = make_table(), make_table()
@@ -361,11 +422,14 @@ def getReconstructionTable(results, fulltable=False):
                 subtable3.add_row(str(sum(results[1+symidx*3::3])),
                                   str(sum(results[2+symidx*3::3])))
                 subtable2.add_row(str(sum(results[symidx*3::3])), subtable3)
+                if symbolIn and "%" not in subentry:
+                    symbolIn, symidx = False, -1
             subtable.add_row(subtable2)
             subtable.add_row(str(subtotal))
 
             subtables.append(subtable)
             idx += 1
+            isubentry += 1
 
         mergetable = make_table(showheader=False)
         mergetable.add_row(*subtables)
@@ -374,7 +438,7 @@ def getReconstructionTable(results, fulltable=False):
 
     return table
 
-def printResults(solvedbaits, numBait, results, fulltable=False):
+def printResults(solvedbaits, numBait, results, resulttable=True, fulltable=False):
     """
     Print results of the fusion of the baitModels
     @params:
@@ -385,28 +449,36 @@ def printResults(solvedbaits, numBait, results, fulltable=False):
                                       (Int List)
         fulltable       - Optional  : Print table with all details or not (Bool)
     """
-    FN, TN = sum(results[6:9]), sum(results[9:])
-    TP, FP = sum(results[0:3]), sum(results[3:6])
+    FN, TN = sum(results[15:18]), sum(results[18:])
+    TP, FP = sum(results[0:3]), sum(results[3:15])
     f = lambda a, b : a/b if b != 0 else 0
-    print("\nF-measure\t\t : {:.2f} %".format(f(2*TP, (2*TP+FP+FN))*100))
-    print("Recall\t\t\t : {} / {} ({:.2f} %)".format(TP, TP+FN,
+    print("\nF-measure    : {:.2f} %".format(f(2*TP, (2*TP+FP+FN))*100))
+    print("Recall       : {} / {} ({:.2f} %)".format(TP, TP+FN,
                                                     f(TP, (TP+FN))*100))
-    print("Accuracy\t\t : {} / {} ({:.2f} %)".format(TP+TN, TP+FP+TN+FN,
+    print("Accuracy     : {} / {} ({:.2f} %)".format(TP+TN, TP+FP+TN+FN,
                                                     f((TP+TN), (TP+FP+TN+FN))*100))
-    print("Precision\t\t : {} / {} ({:.2f} %)".format(TP, TP+FP,
+    print("Precision    : {} / {} ({:.2f} %)".format(TP, TP+FP,
                                                     f(TP, (TP+FP))*100))
-    print("Specifity\t\t : {} / {} ({:.2f} %)".format(TN, TN+FP,
+    print("Specifity    : {} / {} ({:.2f} %)".format(TN, TN+FP,
                                                     f(TN, (TN+FP))*100))
-    print("Sensitivity\t\t : {} / {} ({:.2f} %)".format(TP, TP+FN,
+    print("Sensitivity  : {} / {} ({:.2f} %)".format(TP, TP+FN,
                                                     f(TP, (TP+FN))*100))
-    print("Solved baits\t\t : {} / {} ({:.2f} %)".format(solvedbaits,
+    print("Solved baits : {} / {} ({:.2f} %)".format(solvedbaits,
                                                      numBait,
                                                      f(solvedbaits, numBait)*100))
 
     print()
-    table = getReconstructionTable(results, fulltable)
+    if resulttable:
+        table = getResultsTable(results, fulltable)
+    else:
+        table = getReconstructionTable(results, fulltable)
+
     console = Console()
-    console.print(table)
+    if console.is_terminal:
+        console.print(table)
+    else:
+        console = Console(width=400)
+        console.print(table)
 
 def plotResults(options, lengthBaitModels, respBM):
     """
@@ -464,52 +536,13 @@ def plotResults(options, lengthBaitModels, respBM):
     plt.xlabel("Nombre de baitModels")
     plt.savefig("proportion_plot1{}.png".format(options))
 
-
     # Second plot
-    labels = ["nombre de baits", "baits retrouvés",
-              "baits non retrouvés mais\nsimilaire à 80% ou plus", "bait non retrouvés"]
-    # pTotal = list(map(lambda L: sum(L[4:7]), respBM))
-    pEqual = list(map(lambda L: L[4], respBM))
-    pClose = list(map(lambda L: L[5], respBM))
-    pDiff  = list(map(lambda L: L[6], respBM))
-
-    plt.clf()
-    plt.bar(lengthBaitModels, pTotal, width=1, color='k')
-    plt.bar(lengthBaitModels, pEqual, width=1, color='tab:green')
-    plt.bar(lengthBaitModels, pClose, width=1, color='tab:orange', bottom=pEqual)
-    plt.bar(lengthBaitModels, pDiff, width=1, color='tab:red',
-            bottom=[x + y for x, y in zip(pEqual, pClose)])
-    plt.legend(labels, loc=1)
-    plt.ylabel("Nombre de baits")
-    plt.xlabel("Nombre de baitModels")
-    plt.title("Nombre de baits retrouvés en fonction du nombre de baitModels")
-    plt.savefig("number_plot2{}.png".format(options))
-
-    # Proportion version
-    pEqual = list(map(lambda t: t[0]/t[1], zip(pEqual, pTotal)))
-    pClose = list(map(lambda t: t[0]/t[1], zip(pClose, pTotal)))
-    pDiff = list(map(lambda t: t[0]/t[1], zip(pDiff, pTotal)))
-
-    plt.clf()
-    plt.bar(lengthBaitModels, pEqual, width=1, color='tab:green')
-    plt.bar(lengthBaitModels, pClose, width=1, color='tab:orange', bottom=pEqual)
-    plt.bar(lengthBaitModels, pDiff, width=1, color='tab:red',
-            bottom=[x + y for x, y in zip(pEqual, pClose)])
-    plt.legend(labels[1:], loc=4)
-    plt.ylabel("Proportion")
-    plt.xlabel("Nombre de baitModels")
-    plt.title("Proportion de baits retrouvés en fonction du nombre de baitModels")
-    plt.savefig("proportion_plot2{}.png".format(options))
-
-
-    # Third plot
     lab = ["baits retrouvés", "baits non retrouvés       "]
     leg2 = ["nombre de baits", ""] + lab + [""] + lab
-    # pTotal = list(map(lambda L: sum(L[0:4]), respBM))
-    pEqNi = list(map(lambda L: L[7], respBM))
-    pDiNi = list(map(lambda L: L[8], respBM))
-    pEqIn = list(map(lambda L: L[9], respBM))
-    pDiIn = list(map(lambda L: L[10], respBM))
+    pEqNi = list(map(lambda L: L[4], respBM))
+    pDiNi = list(map(lambda L: L[5], respBM))
+    pEqIn = list(map(lambda L: L[6], respBM))
+    pDiIn = list(map(lambda L: L[7], respBM))
     sum2 = [x + y for x, y in zip(pEqNi, pDiNi)]
 
     plt.clf()
@@ -525,7 +558,7 @@ def plotResults(options, lengthBaitModels, respBM):
     plt.ylabel("Nombre de baits")
     plt.xlabel("Nombre de baitModels")
     plt.title("Nombre de baits retrouvés en fonction du nombre de baitModels")
-    plt.savefig("number_plot3{}.png".format(options))
+    plt.savefig("number_plot2{}.png".format(options))
 
     # Proportion version
     pEqNi = list(map(lambda t: t[0]/t[1], zip(pEqNi, pTotal)))
@@ -546,7 +579,7 @@ def plotResults(options, lengthBaitModels, respBM):
     plt.ylabel("Proportion")
     plt.xlabel("Nombre de baitModels")
     plt.title("Proportion de baits retrouvés en fonction du nombre de baitModels")
-    plt.savefig("proportion_plot3{}.png".format(options))
+    plt.savefig("proportion_plot2{}.png".format(options))
 
 def printProgressBar(solvedbaits, iteration, total, prefix = '', suffix = '', decimals = 2, length = 30, printEnd = "\r"):
     """
