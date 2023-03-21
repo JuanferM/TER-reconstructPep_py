@@ -13,20 +13,38 @@ infilename, massfilename = sys.argv[1], sys.argv[2]
 # ---------------------------------------------
 
 # ---------------- PARAMETERS -----------------
+# Display settings
 verbose = False
-fulltable = False
-onlythisbait = ""
-minNumBaits = 1
-maxNumBaits = float('inf') # included
-uncertainty, trace = 0.01, 1
-useMUSCLE, cansimplify = True, True
+fulltable = True
+resulttable = True
+
+# Error margins and baitModels weights
+trace = 1
+uncertainty = 0.01
+valid, probation, invalid = 4, 1, 0
+
+# Method options
+secondpass = True
+concatenation = True
+cansimplify = True
+simplifyBothWays = True
+
+# Settings about solvers
+useMUSCLE = True
 clustalopt = "-QUICKTREE -MATRIX=GONNET -GAPOPEN=5 -GAPEXT=1 -NOHGAP \
 -NOWEIGHTS -CLUSTERING=UPGMA"
 muscleopt = ""
+
+# Settings about baitModels
+onlythisbait = ""
+minNumBaits = 2
+maxNumBaits = float('inf')
 # ---------------------------------------------
 
 # ---------- VARIABLES DEFINITION -------------
-results = [0] * 21
+musclecmd = "./muscle3.8"
+clustalcmd = "./clustalw2 -ALIGN -QUIET -OUTPUT=FASTA"
+results = [0] * 30
 solvedbaits, totalBaitInBM = 0, 0
 totalBait, totalBaitWithOneBM, numBait = 0, 0, 0
 numBaitWithMassDispersion, minBMcount, maxBMcount, meanBMcount = 0, 0, 0, 0
@@ -55,8 +73,10 @@ mono = {"A" : 71.03,
         "V" : 99.06,
         "U" : 150.95
         }
-clustalcmd = "./clustalw2 -ALIGN -QUIET -OUTPUT=FASTA"
-musclecmd = "./muscle3.8"
+csvdata = []
+csvheader = ["Bait", "Output", "Bait reconstructed", "Length of bait",
+             "Length of longest common continuous sequence (LCCS)",
+             "Number of amino acids not in LCCS"]
 # ---------------------------------------------
 
 # ------------- READ MASS TABLE ---------------
@@ -80,6 +100,7 @@ printStats(verbose, trace, uncertainty, numBait, totalBait, totalBaitWithOneBM,
 # ------------ FUSION BAIT MODELS -------------
 iteration = 1 # Iteration counter to print progress bar
 for bait, data in baits.items():
+    csvrow = [bait]
     wholebaitmodel = False
     keepgoing, stopped = True, False
     fusedBait, candidate = "", "_"
@@ -238,38 +259,34 @@ for bait, data in baits.items():
     if verbose:
         print("Fusion : ", fusedBait)
     else:
-        if iteration == 1:
-            print()
-        printProgressBar(solvedbaits, iteration, numBait, prefix = 'Progress:',
-                         suffix = 'Solved')
+        # Print only if not redirecting to file
+        if sys.stdout.isatty():
+            if iteration == 1:
+                print()
+            printProgressBar(solvedbaits, iteration, numBait, prefix = 'Progress:', suffix
+                 = 'Solved')
 
     # Some stats
     lenbait = len(bait)
     inBM = bait in baitModels
     isequal, numMatch = compare(bait, fusedBait)
     if lenBaitModels not in resultsPerBM:
-        resultsPerBM[lenBaitModels] = [0] * 11
+        resultsPerBM[lenBaitModels] = [0] * 8
     if not stopped:
         if isequal:
             resultsPerBM[lenBaitModels][0] += 1
-            resultsPerBM[lenBaitModels][4] += 1
             results[0:3] = fillResults(results[0:3], inBM, wholebaitmodel)
         else:
             ratio = numMatch/lenbait
             resultsPerBM[lenBaitModels][1] += 1
-            resultsPerBM[lenBaitModels][5] += 1 if ratio >= 0.8 else 0
-            resultsPerBM[lenBaitModels][6] += 1 if ratio < 0.8 else 0
             results[3:6] = fillResults(results[3:6], inBM, wholebaitmodel)
     else:
         if isequal:
             resultsPerBM[lenBaitModels][2] += 1
-            resultsPerBM[lenBaitModels][4] += 1
             results[6:9] = fillResults(results[6:9], inBM, wholebaitmodel)
         else:
             ratio = numMatch/lenbait
             resultsPerBM[lenBaitModels][3] += 1
-            resultsPerBM[lenBaitModels][5] += 1 if ratio >= 0.8 else 0
-            resultsPerBM[lenBaitModels][6] += 1 if ratio < 0.8 else 0
             if ratio >= 0.8:
                 results[9:12] = fillResults(results[9:12], inBM, wholebaitmodel)
             elif ratio >= 0.5:
@@ -280,26 +297,41 @@ for bait, data in baits.items():
                 results[18:21] = fillResults(results[18:21], inBM, wholebaitmodel)
     if not inBM:
         if isequal:
-            resultsPerBM[lenBaitModels][7] += 1
+            resultsPerBM[lenBaitModels][4] += 1
         else:
-            resultsPerBM[lenBaitModels][8] += 1
+            resultsPerBM[lenBaitModels][5] += 1
     else:
         if isequal:
-            resultsPerBM[lenBaitModels][9] += 1
+            resultsPerBM[lenBaitModels][6] += 1
         else:
-            resultsPerBM[lenBaitModels][10] += 1
+            resultsPerBM[lenBaitModels][7] += 1
 
+    # Data for output.csv file
+    csvrow.append(fusedBait)
+    csvrow.append(str(isequal))
+    csvrow.append(str(len(bait)))
+    csvrow.append(str(numMatch))
+    csvrow.append(str(len(fusedBait)-numMatch))
+    csvdata.append(csvrow)
+
+    # Totals
     # Totals
     solvedbaits += 1 if isequal else 0
     iteration += 1
 # ---------------------------------------------
 
 # ----------------- RESULTS -------------------
-printResults(solvedbaits, numBait, results, fulltable)
+if solvedbaits != 0:
+    printResults(solvedbaits, numBait, results, resulttable, fulltable)
+    writeResults("output_align.csv", csvheader, csvdata)
+else:
+    print("\nNO SOLUTION!")
 # ---------------------------------------------
 
 # ------------------- PLOTS -------------------
 options = " (sans simplification)" if not cansimplify else ""
-lengthBaitModels, respBM = tuple(zip(*[t[0] for t in sorted(zip(resultsPerBM.items()))]))
-plotResults(options, lengthBaitModels, respBM)
+
+if solvedbaits != 0:
+    lengthBaitModels, respBM = tuple(zip(*[t[0] for t in sorted(zip(resultsPerBM.items()))]))
+    plotResults(options, lengthBaitModels, respBM)
 # ---------------------------------------------

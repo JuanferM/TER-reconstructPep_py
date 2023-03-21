@@ -73,6 +73,7 @@ def compare(bait, fusedBait):
                 x, y = i, j
                 r = LCCS[i][j]
 
+    r = 0 if r == -1 else r
     return (A == B), r
 
 def scoreBM(stats):
@@ -481,6 +482,23 @@ def printResults(solvedbaits, numBait, results, resulttable=True, fulltable=Fals
     else:
         console = Console(width=400)
         console.print(table)
+
+def writeResults(fname, csvheader, csvdata):
+    """
+    Store method output to csv file
+    @params:
+        fname               - Required  : csv file name
+        csvheader           - Required  : header of csv file
+        csvdata             - Required  : data to store in csv file
+    """
+    # open file in write mode
+    with open(fname, 'w', encoding='UTF8', newline='') as f:
+        # create csv writer
+        writer = csv.writer(f)
+        # write the header
+        writer.writerow(csvheader)
+        # write rows
+        writer.writerows(csvdata)
 
 def plotResults(options, lengthBaitModels, respBM):
     """

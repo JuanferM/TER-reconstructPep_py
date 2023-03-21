@@ -63,6 +63,10 @@ mono = {"A" : 71.03,
         "V" : 99.06,
         "U" : 150.95
         }
+csvdata = []
+csvheader = ["Bait", "Output", "Bait reconstructed", "Length of bait",
+             "Length of longest common continuous sequence (LCCS)",
+             "Number of amino acids not in LCCS"]
 # ---------------------------------------------
 
 # ------------- READ MASS TABLE ---------------
@@ -86,6 +90,7 @@ printStats(verbose, trace, uncertainty, numBait, totalBait, totalBaitWithOneBM,
 # ------------ FUSION BAIT MODELS -------------
 iteration = 1 # Iteration counter to print progress bar
 for bait, data in baits.items():
+    csvrow = [bait]
     wholebaitmodel = False
     startchar, stopchar = '[', ']'
     keepgoing, stopped, reverse = True, False, False
@@ -320,6 +325,14 @@ for bait, data in baits.items():
         else:
             resultsPerBM[lenBaitModels][7] += 1
 
+    # Data for output.csv file
+    csvrow.append(fusedBait)
+    csvrow.append(str(isequal))
+    csvrow.append(str(len(bait)))
+    csvrow.append(str(numMatch))
+    csvrow.append(str(len(fusedBait)-numMatch))
+    csvdata.append(csvrow)
+
     # Totals
     solvedbaits += 1 if isequal else 0
     iteration += 1
@@ -328,6 +341,7 @@ for bait, data in baits.items():
 # ----------------- RESULTS -------------------
 if solvedbaits != 0:
     printResults(solvedbaits, numBait, results, resulttable, fulltable)
+    writeResults("output_linear.csv", csvheader, csvdata)
 else:
     print("\nNO SOLUTION!")
 # ---------------------------------------------
