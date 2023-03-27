@@ -26,8 +26,8 @@ secondpass = True
 concatenation = True
 cansimplify = True
 simplifyBothWays = True
-ignoreDuplicateBM = False
 replaceDashByMass = True
+ignoreDuplicateBM = False
 
 # Settings about baitModels
 onlythisbait = ""
@@ -253,7 +253,7 @@ for bait, data in baits.items():
                     indices[i] += -1 if reverse else 1
 
     # STEP3: determine best sequence computed
-    combi, remainingMass = "", -1
+    combi, remainingMass, allSame = "", -1, True
     bothWays = reverse and stopped and concatenation
     if reverse:
         if bothWays:
@@ -283,7 +283,7 @@ for bait, data in baits.items():
                         j = -abs(queryMass)
                         ncombi = len(massTable[str(abs(queryMass))])
 
-                c, remainingMass = '-', mass
+                c, remainingMass = "-", mass
                 if ncombi == 1:
                     combi = massTable[str(-j)][0]
                     if len(combi) == 1:
@@ -292,6 +292,13 @@ for bait, data in baits.items():
                         combi = ""
                     else:
                         # Check if combination only has one type of amino acid
+                        # If it is the case then we can replace '-' by the
+                        # combination
+                        i, firstChar = 1, combi[0]
+                        while allSame and i < len(combi):
+                            allSame = (firstChar == combi[i])
+                            i += 1
+                        c = combi if allSame else c
                         remMassIsGSC += 1
 
                 fusedBait = befRevBait + c + fusedBait[::-1]
@@ -400,13 +407,13 @@ for bait, data in baits.items():
     iteration += 1
 # ---------------------------------------------
 
-print(remMassIsGSC)
 # ----------------- RESULTS -------------------
 if solvedbaits != 0:
     printResults(solvedbaits, numBait, results, resultsPercent, fulltable)
     writeResults("output_linear.csv", csvheader, csvdata)
 else:
     print("\nNO SOLUTION!")
+print(remMassIsGSC)
 # ---------------------------------------------
 
 # ------------------- PLOTS -------------------
