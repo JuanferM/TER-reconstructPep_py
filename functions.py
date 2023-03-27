@@ -237,15 +237,18 @@ def fillResults(R, inBM, wholebaitmodel):
         R[2] += 1
     return R
 
-def readStatsFile(fname, minNumBaits=0, maxNumBaits=float('inf')):
+def readStatsFile(fname, minNumBaits=0, maxNumBaits=float('inf'),
+                  ignoreDuplicateBM=False):
     """
     Read stats file
     @params:
-        fname           - Required  : Path to the stats file (Str)
-        minNumBaits     - Optional  : Only load baits with at least minNumBaits
-                                      baitModels (Int)
-        maxNumBaits     - Optional  : Only load baits with at most maxNumBaits
-                                      baitModels (Int)
+        fname             - Required  : Path to the stats file (Str)
+        minNumBaits       - Optional  : Only load baits with at least minNumBaits
+                                        baitModels (Int)
+        maxNumBaits       - Optional  : Only load baits with at most maxNumBaits
+                                        baitModels (Int)
+        ignoreDuplicateBM - Optional  : Only load baits with at most maxNumBaits
+                                        baitModels (Int)
     @return statistics on file and a dictionary with baits as key and all the
     data about each baits as value (Tuple)
     """
@@ -261,12 +264,17 @@ def readStatsFile(fname, minNumBaits=0, maxNumBaits=float('inf')):
             nBaitModel = int(nBaitModel)
             baitStats = (float(meanMass), float(sdMass))
             baitModels, baitModelsStats = [], []
+            offset = 0
             for i in range(i+1, i+1+nBaitModel):
                 baitModel, SPC, SGscore, baitMass, LS, nMass, GSC, GMC, GUM = rows[i].split()
+                if ignoreDuplicateBM and baitModel in baitModels:
+                    offset += 1
+                    continue
                 baitModels.append(baitModel)
                 st = [int(SPC), float(SGscore), float(baitMass)]
                 st = st + list(map(int, [LS, nMass, GSC, GMC, GUM]))
                 baitModelsStats.append(st)
+            nBaitModel -= offset
             i += 1
             if minNumBaits <= nBaitModel <= maxNumBaits:
                 numBait += 1
@@ -306,140 +314,123 @@ def printStats(verbose, trace, uncertainty, numBait, nBait, nBaitOne,
     print("Uncertainty                              : ", uncertainty, " Da")
     print("# of baits                               : ", numBait)
     print("# of baits in stats file                 : ", nBait)
-    print("# of baits with at least one bait model  : ", nBaitOne)
+    print("# of baits with at least two bait models : ", nBaitOne)
     print("# of baits with mass dispersion > 1.0 Da : ", massDispCount)
     print("Min # of baitModels in stats file        : ", minCount)
     print("Max # of baitModels in stats file        : ", maxCount)
     print("Avg # of baitModels in stats file        : ", truncate(moyCount, 2))
     print("# of bait sequence incl. in bait models  : ", totalInBM)
 
-def getResultsTable(results, fulltable=False):
+def getResultsTables(results, resultsPercent, fulltable=False):
     """
     Print table according to the results [see printResults]
     @params:
         results         - Required  : Results obtained with method
                                       [look for "# Some stats" in main file]
                                       (Int List)
+        resultsPercent  - Required  : Results obtained with method (percent)
+                                      [look for "# Some stats" in main file]
+                                      (Float List)
         fulltable       - Optional  : Print table with all details or not (Bool)
     """
-    entries = {"Baits reconstitués" : ["= bait"],
-               "Baits non reconstitués" : ["80% du bait", "50% du bait",
-                           "30% du bait", "Reste (≠ bait)"]}
-    table = Table(title="Statistiques résultats baitFusion", padding=(0,0,0,0),
+    mt, bt, fnd = "More than ", "Between ", " found"
+    entries = {"Full reconstruction" : [("= bait", "= bait"),
+                                        (mt+"21 AA"+fnd, mt+"80% AA"+fnd),
+                                        (bt+"14 and 20 AA"+fnd, bt+"80% and 50% AA"+fnd),
+                                        (bt+"7 and 13 AA"+fnd, bt+"50% and 30% AA"+fnd),
+                                        ("≠ bait", "≠ bait")],
+               "Partial reconstruction" : [(mt+"21 AA"+fnd, mt+"80% AA"+fnd),
+                                           (bt+"14 and 20 AA"+fnd, bt+"80% and 50% AA"+fnd),
+                                           (bt+"7 and 13 AA"+fnd, bt+"50% and 30% AA"+fnd),
+                                           ("≠ bait", "≠ bait")]}
+    table = Table(title="baitFusion detailed results", padding=(0,0,0,0),
                   box=box.ASCII_DOUBLE_HEAD)
-    R = [0] * 15
-    for i in range(15):
-        R[i] = results[i]+results[i+15]
+    tablePercent = Table(title="baitFusion detailed results (percent)",
+                  padding=(0,0,0,0), box=box.ASCII_DOUBLE_HEAD)
 
-    columns = []
-    idx, symbolIn, symidx = 0, False, -1
+    columns, columnsP = [], []
+    previousAAinEntry = False
+    idx, contract, conidx = 0, False, -1
     for entry, subentries in entries.items():
-        subtables = []
+        subtables, subtablesP = [], []
         add_column(table, entry)
-        for subentry in subentries:
-            if not fulltable and "%" in subentry:
-                if not symbolIn:
-                    symbolIn, symidx = True, idx
+        add_column(tablePercent, entry)
+        for subentry, subentryP in subentries:
+            AAinEntry = "AA" in subentry or "AA" in subentryP
+            if not fulltable and AAinEntry:
+                if not contract:
+                    contract, conidx = True, idx
                 idx += 1
                 continue
             cl = "green" if (idx == 0) else "red"
-            subtotal = sum(R[idx*3:3+idx*3])
-            subtable = make_table(cl, True)
-            subtable2, subtable3 = make_table(), make_table()
-
-            add_column(subtable, subentry, color=cl)
-            add_column(subtable2, "bait incl.\ndans les\nbaitmodels")
-            add_column(subtable2, "bait non\nincl. dans les\nbaitmodels")
-            add_column(subtable3, "baitmodel ≠\ndu bait sans\nmodification")
-            add_column(subtable3, "reste")
-
-            if not symbolIn:
-                subtable3.add_row(str(R[1+idx*3]), str(R[2+idx*3]))
-                subtable2.add_row(str(R[idx*3]), subtable3)
-            else:
-                subtotal += sum(R[symidx*3:idx*3])
-                subtable3.add_row(str(sum(R[1+symidx*3::3])),
-                                  str(sum(R[2+symidx*3::3])))
-                subtable2.add_row(str(sum(R[symidx*3::3])), subtable3)
-            subtable.add_row(subtable2)
-            subtable.add_row(str(subtotal))
-
-            subtables.append(subtable)
-            idx += 1
-
-        mergetable = make_table(showheader=False)
-        mergetable.add_row(*subtables)
-        columns.append(mergetable)
-    table.add_row(*columns)
-
-    return table
-
-def getReconstructionTable(results, fulltable=False):
-    """
-    Print table according to the results and the fact that the algorithm was
-    stopped or not [see printResults]
-    @params:
-        results         - Required  : Results obtained with method
-                                      [look for "# Some stats" in main file]
-                                      (Int List)
-        fulltable       - Optional  : Print table with all details or not (Bool)
-    """
-    entries = {"Reconstitution complète" : ["VP (= bait)", "80% du bait", "50% du bait",
-                                            "30% du bait", "Reste (≠ bait)"],
-               "Reconstitution incomplète": ["VP (= bait)", "80% du bait",
-                                             "50% du bait", "30% du bait",
-                                             "Reste (≠ bait)"]}
-    table = Table(title="Statistiques reconstitution baitFusion", padding=(0,0,0,0),
-                  box=box.ASCII_DOUBLE_HEAD)
-
-    columns = []
-    idx, symbolIn, symidx = 0, False, -1
-    for entry, subentries in entries.items():
-        isubentry = 0
-        subtables = []
-        add_column(table, entry)
-        for subentry in subentries:
-            if not fulltable and "%" in subentry:
-                if not symbolIn:
-                    symbolIn, symidx = True, idx
-                idx += 1
-                continue
-            cl = "green" if (isubentry == 0) else "red"
             subtotal = sum(results[idx*3:3+idx*3])
             subtable = make_table(cl, True)
             subtable2, subtable3 = make_table(), make_table()
+            # percent subtables
+            subtotalP = sum(resultsPercent[idx*3:3+idx*3])
+            subtableP = make_table(cl, True)
+            subtable2P, subtable3P = make_table(), make_table()
 
-            add_column(subtable, subentry, color=cl)
-            add_column(subtable2, "bait incl.\ndans les\nbaitmodels")
-            add_column(subtable2, "bait non\nincl. dans les\nbaitmodels")
-            add_column(subtable3, "baitmodel ≠\ndu bait sans\nmodification")
-            add_column(subtable3, "reste")
+            if fulltable and not AAinEntry and previousAAinEntry:
+                add_column(subtable, "Others ("+subentry+")", color=cl)
+                add_column(subtableP, "Others ("+subentryP+")", color=cl)
+            else:
+                add_column(subtable, subentry, color=cl)
+                add_column(subtableP, subentryP, color=cl)
+            add_column(subtable2, "bait incl. in \nbaitmodels")
+            add_column(subtable2, "bait not incl.\nin baitmodels")
+            add_column(subtable3, "baitmodel ≠ from\nbait without\nmodification")
+            add_column(subtable3, "others")
+            # create percent subtables columns
+            add_column(subtable2P, "bait incl. in \nbaitmodels")
+            add_column(subtable2P, "bait not incl.\nin baitmodels")
+            add_column(subtable3P, "baitmodel ≠ from\nbait without\nmodification")
+            add_column(subtable3P, "others")
 
-            if not symbolIn:
+            if not contract:
                 subtable3.add_row(str(results[1+idx*3]), str(results[2+idx*3]))
                 subtable2.add_row(str(results[idx*3]), subtable3)
+                # fill percent subtables
+                subtable3P.add_row(str(resultsPercent[1+idx*3]),
+                                   str(resultsPercent[2+idx*3]))
+                subtable2P.add_row(str(resultsPercent[idx*3]), subtable3P)
             else:
-                subtotal += sum(results[symidx*3:idx*3])
-                subtable3.add_row(str(sum(results[1+symidx*3::3])),
-                                  str(sum(results[2+symidx*3::3])))
-                subtable2.add_row(str(sum(results[symidx*3::3])), subtable3)
-                if symbolIn and "%" not in subentry:
-                    symbolIn, symidx = False, -1
+                subtotal += sum(results[conidx*3:idx*3])
+                subtable3.add_row(str(sum(results[1+conidx*3::3])),
+                                  str(sum(results[2+conidx*3::3])))
+                subtable2.add_row(str(sum(results[conidx*3::3])), subtable3)
+                # accumulate data if not fulltable (percent version)
+                subtotalP += sum(resultsPercent[conidx*3:idx*3])
+                subtable3P.add_row(str(sum(resultsPercent[1+conidx*3::3])),
+                                   str(sum(resultsPercent[2+conidx*3::3])))
+                subtable2P.add_row(str(sum(resultsPercent[conidx*3::3])),
+                                   subtable3P)
+                if contract and AAinEntry:
+                    contract, conidx = False, -1
             subtable.add_row(subtable2)
             subtable.add_row(str(subtotal))
+            # Add to subtable (percent version)
+            subtableP.add_row(subtable2P)
+            subtableP.add_row(str(subtotalP))
 
             subtables.append(subtable)
+            subtablesP.append(subtableP)
             idx += 1
-            isubentry += 1
+            previousAAinEntry = AAinEntry
 
         mergetable = make_table(showheader=False)
         mergetable.add_row(*subtables)
         columns.append(mergetable)
+
+        mergetableP = make_table(showheader=False)
+        mergetableP.add_row(*subtablesP)
+        columnsP.append(mergetableP)
     table.add_row(*columns)
+    tablePercent.add_row(*columnsP)
 
-    return table
+    return table, tablePercent
 
-def printResults(solvedbaits, numBait, results, resulttable=True, fulltable=False):
+def printResults(solvedbaits, numBait, results, resultsPercent, fulltable=False):
     """
     Print results of the fusion of the baitModels
     @params:
@@ -448,40 +439,36 @@ def printResults(solvedbaits, numBait, results, resulttable=True, fulltable=Fals
         results         - Required  : Results obtained with method
                                       [look for "# Some stats" in main file]
                                       (Int List)
-        resulttable     - Optional  : If True prints table discarding the fact
-                                      that the algorithm was stopped or not (Bool)
+        resultsPercent  - Required  : Results obtained with method (percent)
+                                      [look for "# Some stats" in main file]
+                                      (Float List)
         fulltable       - Optional  : Print table with all details or not (Bool)
     """
-    FN, TN = sum(results[15:18]), sum(results[18:])
-    TP, FP = sum(results[0:3]), sum(results[3:15])
     f = lambda a, b : a/b if b != 0 else 0
-    print("\nF-measure    : {:.2f} %".format(f(2*TP, (2*TP+FP+FN))*100))
-    print("Recall       : {} / {} ({:.2f} %)".format(TP, TP+FN,
-                                                    f(TP, (TP+FN))*100))
-    print("Accuracy     : {} / {} ({:.2f} %)".format(TP+TN, TP+FP+TN+FN,
-                                                    f((TP+TN), (TP+FP+TN+FN))*100))
-    print("Precision    : {} / {} ({:.2f} %)".format(TP, TP+FP,
-                                                    f(TP, (TP+FP))*100))
-    print("Specifity    : {} / {} ({:.2f} %)".format(TN, TN+FP,
-                                                    f(TN, (TN+FP))*100))
-    print("Sensitivity  : {} / {} ({:.2f} %)".format(TP, TP+FN,
-                                                    f(TP, (TP+FN))*100))
-    print("Solved baits : {} / {} ({:.2f} %)".format(solvedbaits,
-                                                     numBait,
-                                                     f(solvedbaits, numBait)*100))
+    fullRecEqBait = sum(results[0:3])
+    fullRecNeqBait = sum(results[3:15])
+    partialRecBait = sum(results[15:])
+    total = fullRecEqBait + fullRecNeqBait + partialRecBait
+    totalRec = total - partialRecBait
+    print()
+    print("% of baits found                         : {} / {} ({:.2f} %)".format(
+          solvedbaits, numBait, f(solvedbaits, numBait)*100))
+    print("% of fully reconstructed sequences (FRS) : {} / {} ({:.2f} %)".format(
+          totalRec, total, f(totalRec, total)*100))
+    print("% of baits found w/ respect to FRS       : {} / {} ({:.2f} %)".format(
+          fullRecEqBait, totalRec, f(fullRecEqBait, totalRec)*100))
+
+    table, tablePercent = getResultsTables(results, resultsPercent, fulltable)
 
     print()
-    if resulttable:
-        table = getResultsTable(results, fulltable)
-    else:
-        table = getReconstructionTable(results, fulltable)
-
     console = Console()
     if console.is_terminal:
-        console.print(table)
+        console.print(table, "\n")
+        console.print(tablePercent)
     else:
         console = Console(width=400)
-        console.print(table)
+        console.print(table, "\n")
+        console.print(tablePercent)
 
 def writeResults(fname, csvheader, csvdata):
     """

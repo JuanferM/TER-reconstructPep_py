@@ -14,9 +14,8 @@ infilename, massfilename = sys.argv[1], sys.argv[2]
 
 # ---------------- PARAMETERS -----------------
 # Display settings
-verbose = False
+verbose = True
 fulltable = True
-resulttable = True
 
 # Error margins and baitModels weights
 trace = 1
@@ -28,15 +27,16 @@ secondpass = True
 concatenation = True
 cansimplify = True
 simplifyBothWays = True
+ignoreDuplicateBM = True
 
 # Settings about solvers
-useMUSCLE = True
+useMUSCLE = False
 clustalopt = "-QUICKTREE -MATRIX=GONNET -GAPOPEN=5 -GAPEXT=1 -NOHGAP \
 -NOWEIGHTS -CLUSTERING=UPGMA"
 muscleopt = ""
 
 # Settings about baitModels
-onlythisbait = ""
+onlythisbait = "IGEIVGVIVNHFK"
 minNumBaits = 2
 maxNumBaits = float('inf')
 # ---------------------------------------------
@@ -44,7 +44,8 @@ maxNumBaits = float('inf')
 # ---------- VARIABLES DEFINITION -------------
 musclecmd = "./muscle3.8"
 clustalcmd = "./clustalw2 -ALIGN -QUIET -OUTPUT=FASTA"
-results = [0] * 30
+results = [0] * 27
+resultsPercent = [0] * 27
 solvedbaits, totalBaitInBM = 0, 0
 totalBait, totalBaitWithOneBM, numBait = 0, 0, 0
 numBaitWithMassDispersion, minBMcount, maxBMcount, meanBMcount = 0, 0, 0, 0
@@ -88,7 +89,8 @@ print("Done")
 # ------------- READING STATS FILE ------------
 print("Reading stats file... ", end='')
 baits, totalBait, totalBaitWithOneBM, numBait, totalBaitInBM, numBaitWithMassDispersion,\
-minBMcount, maxBMcount, meanBMcount = readStatsFile(infilename, minNumBaits, maxNumBaits)
+minBMcount, maxBMcount, meanBMcount = readStatsFile(infilename, minNumBaits,
+                                                    maxNumBaits, ignoreDuplicateBM)
 print("Done\n")
 # ---------------------------------------------
 
@@ -159,9 +161,9 @@ for bait, data in baits.items():
                         for combi in massTable[str(-j)]:
                             lencombi = len(combi)
                             moylen += lencombi
-                        converted += '-'*trunc(moylen/ncombi)
+                        converted += '-'*trunc(moylen/ncombi) #TODO
                     else:
-                        converted += '-'*(ceil(-j/mono['G']))
+                        converted += '-'*(ceil(-j/mono['G'])) #TODO
 
                 currentMass = ""
             elif c not in NUMS and c not in '[]':
@@ -177,6 +179,7 @@ for bait, data in baits.items():
     with open(path, 'wb') as tmp:
         for i in range(lenBaitModels):
             tmp.write(">s{}\n{}\n".format(i, convertedBaitModels[i]).encode())
+            print(">s{}\n{}".format(i, convertedBaitModels[i])) #TODO
 
     # STEP3 : run Clustal on the file and create an output file
     IN, OUT = path, path+".out"
@@ -216,7 +219,7 @@ for bait, data in baits.items():
                 if c not in "_[]":
                     if c not in candidates:
                         candidates[c], scoresB[c] = 0, 0
-                    candidates[c] += 0.01 if c == '-' else 1
+                    candidates[c] += 0.01 if c == '-' else 1 #TODO
                     scoresB[c] += scoreBM(baitModelsStats[i])
 
         # Determine who is the elected candidate
@@ -263,6 +266,8 @@ for bait, data in baits.items():
         if sys.stdout.isatty():
             if iteration == 1:
                 print()
+            if onlythisbait != "":
+                numBait = 1
             printProgressBar(solvedbaits, iteration, numBait, prefix = 'Progress:', suffix
                  = 'Solved')
 
@@ -272,29 +277,50 @@ for bait, data in baits.items():
     isequal, numMatch = compare(bait, fusedBait)
     if lenBaitModels not in resultsPerBM:
         resultsPerBM[lenBaitModels] = [0] * 8
-    if not stopped:
+    if '-' not in fusedBait:
         if isequal:
             resultsPerBM[lenBaitModels][0] += 1
             results[0:3] = fillResults(results[0:3], inBM, wholebaitmodel)
         else:
-            ratio = numMatch/lenbait
             resultsPerBM[lenBaitModels][1] += 1
-            results[3:6] = fillResults(results[3:6], inBM, wholebaitmodel)
-    else:
-        if isequal:
-            resultsPerBM[lenBaitModels][2] += 1
-            results[6:9] = fillResults(results[6:9], inBM, wholebaitmodel)
-        else:
-            ratio = numMatch/lenbait
-            resultsPerBM[lenBaitModels][3] += 1
-            if ratio >= 0.8:
+            if numMatch >= 21:
+                results[3:6] = fillResults(results[3:6], inBM, wholebaitmodel)
+            elif numMatch >= 14:
+                results[6:9] = fillResults(results[6:9], inBM, wholebaitmodel)
+            elif numMatch >= 7:
                 results[9:12] = fillResults(results[9:12], inBM, wholebaitmodel)
-            elif ratio >= 0.5:
-                results[12:15] = fillResults(results[12:15], inBM, wholebaitmodel)
-            elif ratio >= 0.3:
-                results[15:18] = fillResults(results[15:18], inBM, wholebaitmodel)
             else:
-                results[18:21] = fillResults(results[18:21], inBM, wholebaitmodel)
+                results[12:15] = fillResults(results[12:15], inBM, wholebaitmodel)
+
+            ratio = numMatch/lenbait
+            if ratio >= 0.8:
+                resultsPercent[3:6] = fillResults(resultsPercent[3:6], inBM, wholebaitmodel)
+            elif ratio >= 0.5:
+                resultsPercent[6:9] = fillResults(resultsPercent[6:9], inBM, wholebaitmodel)
+            elif ratio >= 0.3:
+                resultsPercent[9:12] = fillResults(resultsPercent[9:12], inBM, wholebaitmodel)
+            else:
+                resultsPercent[12:15] = fillResults(resultsPercent[12:15], inBM, wholebaitmodel)
+    else:
+        resultsPerBM[lenBaitModels][3] += 1
+        if numMatch >= 21:
+            results[15:18] = fillResults(results[15:18], inBM, wholebaitmodel)
+        elif numMatch >= 14:
+            results[18:21] = fillResults(results[18:21], inBM, wholebaitmodel)
+        elif numMatch >= 7:
+            results[21:24] = fillResults(results[21:24], inBM, wholebaitmodel)
+        else:
+            results[24:27] = fillResults(results[24:27], inBM, wholebaitmodel)
+
+        ratio = numMatch/lenbait
+        if ratio >= 0.8:
+            resultsPercent[15:18] = fillResults(resultsPercent[15:18], inBM, wholebaitmodel)
+        elif ratio >= 0.5:
+            resultsPercent[18:21] = fillResults(resultsPercent[18:21], inBM, wholebaitmodel)
+        elif ratio >= 0.3:
+            resultsPercent[21:24] = fillResults(resultsPercent[21:24], inBM, wholebaitmodel)
+        else:
+            resultsPercent[24:27] = fillResults(resultsPercent[24:27], inBM, wholebaitmodel)
     if not inBM:
         if isequal:
             resultsPerBM[lenBaitModels][4] += 1
@@ -306,15 +332,19 @@ for bait, data in baits.items():
         else:
             resultsPerBM[lenBaitModels][7] += 1
 
+    # TODO
+    # if iteration > 10:
+    #     break
+
     # Data for output.csv file
     csvrow.append(fusedBait)
     csvrow.append(str(isequal))
     csvrow.append(str(len(bait)))
     csvrow.append(str(numMatch))
-    csvrow.append(str(len(fusedBait)-numMatch))
+    offset = 1 if '-' in fusedBait else 0
+    csvrow.append(str(len(fusedBait)-numMatch-offset))
     csvdata.append(csvrow)
 
-    # Totals
     # Totals
     solvedbaits += 1 if isequal else 0
     iteration += 1
@@ -322,8 +352,9 @@ for bait, data in baits.items():
 
 # ----------------- RESULTS -------------------
 if solvedbaits != 0:
-    printResults(solvedbaits, numBait, results, resulttable, fulltable)
-    writeResults("output_align.csv", csvheader, csvdata)
+    printResults(solvedbaits, numBait, results, resultsPercent, fulltable)
+    version = "MUSCLE" if useMUSCLE else "Clustal"
+    writeResults("output_align{}.csv".format(version), csvheader, csvdata)
 else:
     print("\nNO SOLUTION!")
 # ---------------------------------------------

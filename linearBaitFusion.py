@@ -14,7 +14,6 @@ infilename, massfilename = sys.argv[1], sys.argv[2]
 # Display settings
 verbose = False
 fulltable = True
-resulttable = True
 
 # Error margins and baitModels weights
 trace = 1
@@ -26,6 +25,7 @@ secondpass = True
 concatenation = True
 cansimplify = True
 simplifyBothWays = True
+ignoreDuplicateBM = False
 
 # Settings about baitModels
 onlythisbait = ""
@@ -34,7 +34,8 @@ maxNumBaits = float('inf')
 # ---------------------------------------------
 
 # ---------- VARIABLES DEFINITION -------------
-results = [0] * 30
+results = [0] * 27
+resultsPercent = [0] * 27
 solvedbaits, totalBaitInBM = 0, 0
 totalBait, totalBaitWithOneBM, numBait = 0, 0, 0
 numBaitWithMassDispersion, minBMcount, maxBMcount, meanBMcount = 0, 0, 0, 0
@@ -78,7 +79,8 @@ print("Done")
 # ------------- READING STATS FILE ------------
 print("Reading stats file... ", end='')
 baits, totalBait, totalBaitWithOneBM, numBait, totalBaitInBM, numBaitWithMassDispersion,\
-minBMcount, maxBMcount, meanBMcount = readStatsFile(infilename, minNumBaits, maxNumBaits)
+minBMcount, maxBMcount, meanBMcount = readStatsFile(infilename, minNumBaits,
+                                                    maxNumBaits, ignoreDuplicateBM)
 print("Done\n")
 # ---------------------------------------------
 
@@ -284,36 +286,51 @@ for bait, data in baits.items():
     isequal, numMatch = compare(bait, fusedBait)
     if lenBaitModels not in resultsPerBM:
         resultsPerBM[lenBaitModels] = [0] * 8
-    if not stopped:
+    if '-' not in fusedBait:
         if isequal:
             resultsPerBM[lenBaitModels][0] += 1
             results[0:3] = fillResults(results[0:3], inBM, wholebaitmodel)
+            resultsPercent[0:3] = fillResults(resultsPercent[0:3], inBM, wholebaitmodel)
         else:
-            ratio = numMatch/lenbait
             resultsPerBM[lenBaitModels][1] += 1
-            if ratio >= 0.8:
+            if numMatch >= 21:
                 results[3:6] = fillResults(results[3:6], inBM, wholebaitmodel)
-            elif ratio >= 0.5:
+            elif numMatch >= 14:
                 results[6:9] = fillResults(results[6:9], inBM, wholebaitmodel)
-            elif ratio >= 0.3:
+            elif numMatch >= 7:
                 results[9:12] = fillResults(results[9:12], inBM, wholebaitmodel)
             else:
                 results[12:15] = fillResults(results[12:15], inBM, wholebaitmodel)
-    else:
-        if isequal:
-            resultsPerBM[lenBaitModels][2] += 1
-            results[15:18] = fillResults(results[15:18], inBM, wholebaitmodel)
-        else:
+
             ratio = numMatch/lenbait
-            resultsPerBM[lenBaitModels][3] += 1
             if ratio >= 0.8:
-                results[18:21] = fillResults(results[18:21], inBM, wholebaitmodel)
+                resultsPercent[3:6] = fillResults(resultsPercent[3:6], inBM, wholebaitmodel)
             elif ratio >= 0.5:
-                results[21:24] = fillResults(results[21:24], inBM, wholebaitmodel)
+                resultsPercent[6:9] = fillResults(resultsPercent[6:9], inBM, wholebaitmodel)
             elif ratio >= 0.3:
-                results[24:27] = fillResults(results[24:27], inBM, wholebaitmodel)
+                resultsPercent[9:12] = fillResults(resultsPercent[9:12], inBM, wholebaitmodel)
             else:
-                results[27:30] = fillResults(results[27:30], inBM, wholebaitmodel)
+                resultsPercent[12:15] = fillResults(resultsPercent[12:15], inBM, wholebaitmodel)
+    else:
+        resultsPerBM[lenBaitModels][3] += 1
+        if numMatch >= 21:
+            results[15:18] = fillResults(results[15:18], inBM, wholebaitmodel)
+        elif numMatch >= 14:
+            results[18:21] = fillResults(results[18:21], inBM, wholebaitmodel)
+        elif numMatch >= 7:
+            results[21:24] = fillResults(results[21:24], inBM, wholebaitmodel)
+        else:
+            results[24:27] = fillResults(results[24:27], inBM, wholebaitmodel)
+
+        ratio = numMatch/lenbait
+        if ratio >= 0.8:
+            resultsPercent[15:18] = fillResults(resultsPercent[15:18], inBM, wholebaitmodel)
+        elif ratio >= 0.5:
+            resultsPercent[18:21] = fillResults(resultsPercent[18:21], inBM, wholebaitmodel)
+        elif ratio >= 0.3:
+            resultsPercent[21:24] = fillResults(resultsPercent[21:24], inBM, wholebaitmodel)
+        else:
+            resultsPercent[24:27] = fillResults(resultsPercent[24:27], inBM, wholebaitmodel)
     if not inBM:
         if isequal:
             resultsPerBM[lenBaitModels][4] += 1
@@ -330,7 +347,8 @@ for bait, data in baits.items():
     csvrow.append(str(isequal))
     csvrow.append(str(len(bait)))
     csvrow.append(str(numMatch))
-    csvrow.append(str(len(fusedBait)-numMatch))
+    offset = 1 if '-' in fusedBait else 0
+    csvrow.append(str(len(fusedBait)-numMatch-offset))
     csvdata.append(csvrow)
 
     # Totals
@@ -340,7 +358,7 @@ for bait, data in baits.items():
 
 # ----------------- RESULTS -------------------
 if solvedbaits != 0:
-    printResults(solvedbaits, numBait, results, resulttable, fulltable)
+    printResults(solvedbaits, numBait, results, resultsPercent, fulltable)
     writeResults("output_linear.csv", csvheader, csvdata)
 else:
     print("\nNO SOLUTION!")
