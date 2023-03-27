@@ -17,7 +17,8 @@ fulltable = True
 
 # Error margins and baitModels weights
 trace = 1
-uncertainty = 0.01
+tolerance = 0.04
+sensitivity = 0.01
 valid, probation, invalid = 4, 1, 0
 
 # Method options
@@ -26,6 +27,7 @@ concatenation = True
 cansimplify = True
 simplifyBothWays = True
 ignoreDuplicateBM = False
+replaceDashByMass = True
 
 # Settings about baitModels
 onlythisbait = ""
@@ -85,12 +87,13 @@ print("Done\n")
 # ---------------------------------------------
 
 # --------------- PRINT STATS -----------------
-printStats(verbose, trace, uncertainty, numBait, totalBait, totalBaitWithOneBM,
+printStats(verbose, trace, tolerance, sensitivity, numBait, totalBait, totalBaitWithOneBM,
            numBaitWithMassDispersion, minBMcount, maxBMcount, meanBMcount, totalBaitInBM)
 # ---------------------------------------------
 
 # ------------ FUSION BAIT MODELS -------------
 iteration = 1 # Iteration counter to print progress bar
+remMassIsGSC = 0 # Number of remaining mass equal to a single combination of AAs
 for bait, data in baits.items():
     csvrow = [bait]
     wholebaitmodel = False
@@ -114,7 +117,8 @@ for bait, data in baits.items():
     # STEP0 : simplify baitmodels
     if cansimplify:
         originalBaitModels = baitModels.copy()
-        baitModels = simplifyBM(mono, baitModels, baitModelsStats, massTable, uncertainty)
+        baitModels = simplifyBM(mono, baitModels, baitModelsStats, massTable,
+                                tolerance, sensitivity)
 
     # Find sequence
     while (candidate not in stopAA or reverse) and keepgoing:
@@ -147,12 +151,16 @@ for bait, data in baits.items():
                     validation[i] = invalid
                     continue
                 elif abs(masses[i]) >= trace:
-                    j, mass, ncombi = 0, truncate(masses[i], 2), -1
-                    while 0 <= j < 3:
-                        mass = truncate(mass + (-1)*(j%2)*uncertainty*j, 2)
+                    j, step, n = 0, 0, tolerance/sensitivity
+                    mass, ncombi = truncate(masses[i], 2), -1
+                    while 0 <= j < 3*n:
+                        sign = -1 if j % 2 == 1 else 1
+                        step += (1 if j % 2 == 1 else 0)
+                        queryMass = truncate(mass + sign*sensitivity*step, 2)
                         j += 1
-                        if str(abs(mass)) in massTable:
-                            j, ncombi = -abs(mass), len(massTable[str(abs(mass))])
+                        if str(abs(queryMass)) in massTable:
+                            j = -abs(queryMass)
+                            ncombi = len(massTable[str(abs(queryMass))])
 
                     if ncombi == 1:
                         combi = massTable[str(-j)][0]
@@ -167,7 +175,7 @@ for bait, data in baits.items():
             if c not in "_[]":
                 if c not in candidates:
                     candidates[c], scoresA[c], scoresB[c] = 0, 0, 0
-                candidates[c] += 0.25 if frommass else 1
+                candidates[c] += 0.15 if frommass else 1
                 scoresA[c] += validation[i]
                 scoresB[c] += validation[i]*scoreBM(baitModelsStats[i])
 
@@ -245,6 +253,7 @@ for bait, data in baits.items():
                     indices[i] += -1 if reverse else 1
 
     # STEP3: determine best sequence computed
+    combi, remainingMass = "", -1
     bothWays = reverse and stopped and concatenation
     if reverse:
         if bothWays:
@@ -252,6 +261,7 @@ for bait, data in baits.items():
             # If that mass is greater than the mean of the baitModels masses by
             # a margin (M2) then we remove an amino acid from the right
             # sequence until M1 == M2
+            befmass = befRevBait + '-' + fusedBait[::-1]
             seqmass = getMass(mono, befRevBait) + getMass(mono, fusedBait)
             while seqmass > baitStats[0] + trace and fusedBait != "":
                 seqmass -= mono[fusedBait[-1]]
@@ -260,7 +270,31 @@ for bait, data in baits.items():
             # amino acid) then we insert an '-' meaning that there is a gap of
             # unknown mass in the sequence
             if seqmass < baitStats[0] - mono['G'] + trace:
-                fusedBait = befRevBait + '-' + fusedBait[::-1]
+                # Check if the missing mass corresponds to a single combination
+                # of amino acids in the mass table
+                j, step, n = 0, 0, tolerance/sensitivity
+                mass, ncombi = truncate(baitStats[0] - seqmass, 2), -1
+                while 0 <= j < 3*n:
+                    sign = -1 if j % 2 == 1 else 1
+                    step += (1 if j % 2 == 1 else 0)
+                    queryMass = truncate(mass + sign*sensitivity*step, 2)
+                    j += 1
+                    if str(abs(queryMass)) in massTable:
+                        j = -abs(queryMass)
+                        ncombi = len(massTable[str(abs(queryMass))])
+
+                c, remainingMass = '-', mass
+                if ncombi == 1:
+                    combi = massTable[str(-j)][0]
+                    if len(combi) == 1:
+                        # Amino acid is missing
+                        c = combi
+                        combi = ""
+                    else:
+                        # Check if combination only has one type of amino acid
+                        remMassIsGSC += 1
+
+                fusedBait = befRevBait + c + fusedBait[::-1]
             else:
                 fusedBait = befRevBait + fusedBait[::-1]
         else:
@@ -283,10 +317,11 @@ for bait, data in baits.items():
     # Some stats
     lenbait = len(bait)
     inBM = bait in baitModels
+    dashedSeq = '-' in fusedBait
     isequal, numMatch = compare(bait, fusedBait)
     if lenBaitModels not in resultsPerBM:
         resultsPerBM[lenBaitModels] = [0] * 8
-    if '-' not in fusedBait:
+    if not dashedSeq:
         if isequal:
             resultsPerBM[lenBaitModels][0] += 1
             results[0:3] = fillResults(results[0:3], inBM, wholebaitmodel)
@@ -342,12 +377,21 @@ for bait, data in baits.items():
         else:
             resultsPerBM[lenBaitModels][7] += 1
 
+    # STEP4 (Optional) : if the output sequence contains '-', replace '-' by
+    # missing mass
+    if replaceDashByMass and dashedSeq:
+        seqLeft, seqRight = fusedBait.split('-')
+        if combi != "":
+            fusedBait = seqLeft + '{' + combi + '}' + seqRight
+        else:
+            fusedBait = seqLeft + '[' + str(remainingMass) + ']' + seqRight
+
     # Data for output.csv file
     csvrow.append(fusedBait)
     csvrow.append(str(isequal))
     csvrow.append(str(len(bait)))
     csvrow.append(str(numMatch))
-    offset = 1 if '-' in fusedBait else 0
+    offset = 1 if dashedSeq else 0
     csvrow.append(str(len(fusedBait)-numMatch-offset))
     csvdata.append(csvrow)
 
@@ -356,6 +400,7 @@ for bait, data in baits.items():
     iteration += 1
 # ---------------------------------------------
 
+print(remMassIsGSC)
 # ----------------- RESULTS -------------------
 if solvedbaits != 0:
     printResults(solvedbaits, numBait, results, resultsPercent, fulltable)

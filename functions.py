@@ -102,7 +102,8 @@ def getMass(mono, sequence):
             mass += mono[aa]
     return mass
 
-def simplifyBM(mono, originalBaitModels, baitModelsStats, massTable, uncertainty):
+def simplifyBM(mono, originalBaitModels, baitModelsStats, massTable, tolerance,
+               sensitivity):
     """
     Simplify baitModels
     @params:
@@ -113,8 +114,11 @@ def simplifyBM(mono, originalBaitModels, baitModelsStats, massTable, uncertainty
         baitModelStats      - Required  : stats of all the baitModels [see readStatsFile]
                                           (Int Tuple)
         massTable           - Required  : mass table [see readMassTable] (Dict)
-        uncertainty         - Required  : error margin when looking up a mass
+        tolerance           - Required  : error margin when looking up a mass
                                           in the mass table (Float)
+        sensitivity         - Required  : smallest absolute amount of change to
+                                          mass when looking up a mass in a the mass
+                                          table [until sensitivity == tolerance] (Float)
     @return simplified baitModels [if the process can't be applied, e.g.
             a baitModel with no unknown mass, the original baitModel is
             returned] (Str List)
@@ -139,12 +143,16 @@ def simplifyBM(mono, originalBaitModels, baitModelsStats, massTable, uncertainty
                         sequences.append(seq)
                     seq = ""
                 elif c == ']' and mas != "":
-                    l, mass, ncombi = 0, truncate(float(mas), 2), -1
-                    while 0 <= l < 3:
-                        mass = truncate(mass + (-1)*(l%2)*uncertainty*l, 2)
+                    l, step, n = 0, 0, tolerance/sensitivity
+                    mass, ncombi = truncate(float(mas), 2), -1
+                    while 0 <= l < 3*n:
+                        sign = -1 if l % 2 == 1 else 1
+                        step += (1 if j % 2 == 1 else 0)
+                        queryMass = truncate(mass + sign*sensitivity*step, 2)
                         l += 1
-                        if str(abs(mass)) in massTable:
-                            l, ncombi = -abs(mass), len(massTable[str(abs(mass))])
+                        if str(abs(queryMass)) in massTable:
+                            l = -abs(queryMass)
+                            ncombi = len(massTable[str(abs(queryMass))])
 
                     # If the unknown mass is small enough
                     if firstunk == -1 and ncombi == -1:
@@ -304,14 +312,15 @@ def readMassTable(fname):
             numrow += 1
     return massTable
 
-def printStats(verbose, trace, uncertainty, numBait, nBait, nBaitOne,
+def printStats(verbose, trace, tolerance, sensitivity, numBait, nBait, nBaitOne,
                massDispCount, minCount, maxCount, moyCount, totalInBM):
     """
     Print file statistics
     """
     print("Verbose                                  : ", verbose)
     print("Trace                                    : ", trace, " Da")
-    print("Uncertainty                              : ", uncertainty, " Da")
+    print("Tolerance                                : ", tolerance, " Da")
+    print("Sensitivity                              : ", sensitivity, " Da")
     print("# of baits                               : ", numBait)
     print("# of baits in stats file                 : ", nBait)
     print("# of baits with at least two bait models : ", nBaitOne)
@@ -451,11 +460,11 @@ def printResults(solvedbaits, numBait, results, resultsPercent, fulltable=False)
     total = fullRecEqBait + fullRecNeqBait + partialRecBait
     totalRec = total - partialRecBait
     print()
-    print("% of baits found                         : {} / {} ({:.2f} %)".format(
+    print("# of baits found                         : {} / {} ({:.2f} %)".format(
           solvedbaits, numBait, f(solvedbaits, numBait)*100))
-    print("% of fully reconstructed sequences (FRS) : {} / {} ({:.2f} %)".format(
+    print("# of fully reconstructed sequences (FRS) : {} / {} ({:.2f} %)".format(
           totalRec, total, f(totalRec, total)*100))
-    print("% of baits found w/ respect to FRS       : {} / {} ({:.2f} %)".format(
+    print("# of baits found w/ respect to FRS       : {} / {} ({:.2f} %)".format(
           fullRecEqBait, totalRec, f(fullRecEqBait, totalRec)*100))
 
     table, tablePercent = getResultsTables(results, resultsPercent, fulltable)

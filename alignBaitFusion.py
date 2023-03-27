@@ -14,17 +14,15 @@ infilename, massfilename = sys.argv[1], sys.argv[2]
 
 # ---------------- PARAMETERS -----------------
 # Display settings
-verbose = True
+verbose = False
 fulltable = True
 
 # Error margins and baitModels weights
 trace = 1
-uncertainty = 0.01
-valid, probation, invalid = 4, 1, 0
+tolerance = 0.02
+sensitivity = 0.01
 
 # Method options
-secondpass = True
-concatenation = True
 cansimplify = True
 simplifyBothWays = True
 ignoreDuplicateBM = True
@@ -36,7 +34,7 @@ clustalopt = "-QUICKTREE -MATRIX=GONNET -GAPOPEN=5 -GAPEXT=1 -NOHGAP \
 muscleopt = ""
 
 # Settings about baitModels
-onlythisbait = "IGEIVGVIVNHFK"
+onlythisbait = ""
 minNumBaits = 2
 maxNumBaits = float('inf')
 # ---------------------------------------------
@@ -95,7 +93,7 @@ print("Done\n")
 # ---------------------------------------------
 
 # --------------- PRINT STATS -----------------
-printStats(verbose, trace, uncertainty, numBait, totalBait, totalBaitWithOneBM,
+printStats(verbose, trace, tolerance, sensitivity, numBait, totalBait, totalBaitWithOneBM,
            numBaitWithMassDispersion, minBMcount, maxBMcount, meanBMcount, totalBaitInBM)
 # ---------------------------------------------
 
@@ -122,7 +120,8 @@ for bait, data in baits.items():
     # STEP0 : simplify baitmodels
     if cansimplify:
         originalBaitModels = baitModels.copy()
-        baitModels = simplifyBM(mono, baitModels, baitModelsStats, massTable, uncertainty)
+        baitModels = simplifyBM(mono, baitModels, baitModelsStats, massTable,
+                                tolerance, sensitivity)
         # For some cases simplifying will convert a baitModel into one big mass
         # (e.g. [14.15]G[140.3] ==> [211.47]). In such cases, if we try to
         # replace the mass by '-' we'll have a sequence with no amino acids and
@@ -149,12 +148,16 @@ for bait, data in baits.items():
 
                 # If there is enough excess mass
                 if abs(mass) >= trace:
-                    j, mass, ncombi = 0, truncate(mass, 2), -1
-                    while 0 <= j < 3:
-                        mass = truncate(mass + (-1)*(j%2)*uncertainty*j, 2)
+                    j, step, n = 0, 0, tolerance/sensitivity
+                    mass, ncombi = truncate(mass, 2), -1
+                    while 0 <= j < 3*n:
+                        sign = -1 if j % 2 == 1 else 1
+                        step += (1 if j % 2 == 1 else 0)
+                        queryMass = truncate(mass + sign*sensitivity*step, 2)
                         j += 1
-                        if str(abs(mass)) in massTable:
-                            j, ncombi = -abs(mass), len(massTable[str(abs(mass))])
+                        if str(abs(queryMass)) in massTable:
+                            j = -abs(queryMass)
+                            ncombi = len(massTable[str(abs(queryMass))])
 
                     if ncombi >= 1:
                         moylen = 0
@@ -179,7 +182,7 @@ for bait, data in baits.items():
     with open(path, 'wb') as tmp:
         for i in range(lenBaitModels):
             tmp.write(">s{}\n{}\n".format(i, convertedBaitModels[i]).encode())
-            print(">s{}\n{}".format(i, convertedBaitModels[i])) #TODO
+            # print(">s{}\n{}".format(i, convertedBaitModels[i])) #TODO
 
     # STEP3 : run Clustal on the file and create an output file
     IN, OUT = path, path+".out"
