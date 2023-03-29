@@ -24,7 +24,7 @@ valid, probation, invalid = 4, 1, 0
 # Method options
 secondpass = True
 concatenation = True
-cansimplify = True
+simplification = True
 simplifyBothWays = True
 replaceDashByMass = True
 ignoreDuplicateBM = False
@@ -87,8 +87,15 @@ print("Done\n")
 # ---------------------------------------------
 
 # --------------- PRINT STATS -----------------
-printStats(verbose, trace, tolerance, sensitivity, numBait, totalBait, totalBaitWithOneBM,
-           numBaitWithMassDispersion, minBMcount, maxBMcount, meanBMcount, totalBaitInBM)
+printStats(numBait, totalBait, totalBaitWithOneBM, numBaitWithMassDispersion,
+           minBMcount, maxBMcount, meanBMcount, totalBaitInBM)
+# ---------------------------------------------
+
+# ---------- PRINT PARAMETERS ------------
+printParameters(verbose, trace, tolerance, sensitivity, simplification,
+                simplifyBothWays, ignoreDuplicateBM, minNumBaits, maxNumBaits,
+                None, valid, probation, invalid, secondpass, concatenation,
+                replaceDashByMass)
 # ---------------------------------------------
 
 # ------------ FUSION BAIT MODELS -------------
@@ -106,6 +113,9 @@ for bait, data in baits.items():
     masses = [0.0 for _ in range(lenBaitModels)]
     indices = [0 for _ in range(lenBaitModels)]
     validation = [valid for _ in range(lenBaitModels)]
+    scoreBM = []
+    for i in range(lenBaitModels):
+        scoreBM.append(computeScoreBM(baitModelsStats[i]))
 
     # If onlythisbait is defined then we only run the algorithm on onlythisbait
     # if it is found
@@ -115,7 +125,7 @@ for bait, data in baits.items():
         print("\nBait   : ", bait)
 
     # STEP0 : simplify baitmodels
-    if cansimplify:
+    if simplification:
         originalBaitModels = baitModels.copy()
         baitModels = simplifyBM(mono, baitModels, baitModelsStats, massTable,
                                 tolerance, sensitivity)
@@ -177,7 +187,7 @@ for bait, data in baits.items():
                     candidates[c], scoresA[c], scoresB[c] = 0, 0, 0
                 candidates[c] += 0.15 if frommass else 1
                 scoresA[c] += validation[i]
-                scoresB[c] += validation[i]*scoreBM(baitModelsStats[i])
+                scoresB[c] += validation[i]*scoreBM[i]
 
         # Determine who is the elected candidate
         mostpresent, doubt = 0, True
@@ -215,7 +225,7 @@ for bait, data in baits.items():
                 masses = [0.0 for _ in range(lenBaitModels)]
                 indices = [len(bm)-1 for bm in baitModels]
                 validation = [valid for _ in range(lenBaitModels)]
-                if cansimplify and not simplifyBothWays:
+                if simplification and not simplifyBothWays:
                     baitModels = originalBaitModels
                 continue
             else:
@@ -310,17 +320,6 @@ for bait, data in baits.items():
             cond = len(fusedBait) > len(befRevBait)
             fusedBait = fusedBait[::-1] if cond else befRevBait
 
-    # Print result if verbose else print progress bar
-    if verbose:
-        print("Fusion : ", fusedBait)
-    else:
-        # Print only if not redirecting to file
-        if sys.stdout.isatty():
-            if iteration == 1:
-                print()
-            printProgressBar(solvedbaits, iteration, numBait, prefix = 'Progress:', suffix
-                 = 'Solved')
-
     # Some stats
     lenbait = len(bait)
     inBM = bait in baitModels
@@ -386,6 +385,7 @@ for bait, data in baits.items():
 
     # STEP4 (Optional) : if the output sequence contains '-', replace '-' by
     # missing mass
+    lenFusedBait = len(fusedBait)
     if replaceDashByMass and dashedSeq:
         seqLeft, seqRight = fusedBait.split('-')
         if combi != "":
@@ -393,13 +393,24 @@ for bait, data in baits.items():
         else:
             fusedBait = seqLeft + '[' + str(remainingMass) + ']' + seqRight
 
+    # Print result if verbose else print progress bar
+    if verbose:
+        print("Fusion : ", fusedBait)
+    else:
+        # Print only if not redirecting to file
+        if sys.stdout.isatty():
+            if iteration == 1:
+                print()
+            printProgressBar(solvedbaits, iteration, numBait, prefix = 'Progress:', suffix
+                 = 'Solved')
+
     # Data for output.csv file
     csvrow.append(fusedBait)
     csvrow.append(str(isequal))
     csvrow.append(str(len(bait)))
     csvrow.append(str(numMatch))
     offset = 1 if dashedSeq else 0
-    csvrow.append(str(len(fusedBait)-numMatch-offset))
+    csvrow.append(str(lenFusedBait-numMatch-offset))
     csvdata.append(csvrow)
 
     # Totals
@@ -417,19 +428,19 @@ print(remMassIsGSC)
 # ---------------------------------------------
 
 # ------------------- PLOTS -------------------
-options = " (" if secondpass or cansimplify else ""
+options = " (" if secondpass or simplification else ""
 if secondpass:
     if concatenation:
         options += "deux sens"
     else:
         options += "plus inverse"
-options += " + " if secondpass and cansimplify else ""
-if cansimplify:
+options += " + " if secondpass and simplification else ""
+if simplification:
     if simplifyBothWays:
         options += "simplif deux sens"
     else:
         options += "simplif gauche-droite"
-options += ")" if secondpass or cansimplify else ""
+options += ")" if secondpass or simplification else ""
 
 if solvedbaits != 0:
     lengthBaitModels, respBM = tuple(zip(*[t[0] for t in sorted(zip(resultsPerBM.items()))]))

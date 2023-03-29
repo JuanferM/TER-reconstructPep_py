@@ -23,13 +23,13 @@ tolerance = 0.02
 sensitivity = 0.01
 
 # Method options
-cansimplify = True
+simplification = True
 simplifyBothWays = True
-ignoreDuplicateBM = True
+ignoreDuplicateBM = False
 
 # Settings about solvers
 useMUSCLE = False
-clustalopt = "-QUICKTREE -MATRIX=GONNET -GAPOPEN=5 -GAPEXT=1 -NOHGAP \
+clustalopt = "-QUICKTREE -MATRIX=ID -GAPOPEN=5 -GAPEXT=1 -NOHGAP \
 -NOWEIGHTS -CLUSTERING=UPGMA"
 muscleopt = ""
 
@@ -40,6 +40,7 @@ maxNumBaits = float('inf')
 # ---------------------------------------------
 
 # ---------- VARIABLES DEFINITION -------------
+mafftcmd = "./mafft"
 musclecmd = "./muscle3.8"
 clustalcmd = "./clustalw2 -ALIGN -QUIET -OUTPUT=FASTA"
 results = [0] * 27
@@ -93,8 +94,13 @@ print("Done\n")
 # ---------------------------------------------
 
 # --------------- PRINT STATS -----------------
-printStats(verbose, trace, tolerance, sensitivity, numBait, totalBait, totalBaitWithOneBM,
-           numBaitWithMassDispersion, minBMcount, maxBMcount, meanBMcount, totalBaitInBM)
+printStats(numBait, totalBait, totalBaitWithOneBM, numBaitWithMassDispersion, minBMcount,
+           maxBMcount, meanBMcount, totalBaitInBM)
+# ---------------------------------------------
+
+# ---------- PRINT PARAMETERS ------------
+printParameters(verbose, trace, tolerance, sensitivity, simplification, simplifyBothWays,
+                ignoreDuplicateBM, minNumBaits, maxNumBaits, useMUSCLE)
 # ---------------------------------------------
 
 # ------------ FUSION BAIT MODELS -------------
@@ -118,7 +124,7 @@ for bait, data in baits.items():
         print("\nBait   : ", bait)
 
     # STEP0 : simplify baitmodels
-    if cansimplify:
+    if simplification:
         originalBaitModels = baitModels.copy()
         baitModels = simplifyBM(mono, baitModels, baitModelsStats, massTable,
                                 tolerance, sensitivity)
@@ -164,9 +170,9 @@ for bait, data in baits.items():
                         for combi in massTable[str(-j)]:
                             lencombi = len(combi)
                             moylen += lencombi
-                        converted += '-'*trunc(moylen/ncombi) #TODO
+                        converted += '-'*trunc(moylen/ncombi)
                     else:
-                        converted += '-'*(ceil(-j/mono['G'])) #TODO
+                        converted += '-'*(ceil(-j/mono['G']))
 
                 currentMass = ""
             elif c not in NUMS and c not in '[]':
@@ -182,7 +188,6 @@ for bait, data in baits.items():
     with open(path, 'wb') as tmp:
         for i in range(lenBaitModels):
             tmp.write(">s{}\n{}\n".format(i, convertedBaitModels[i]).encode())
-            # print(">s{}\n{}".format(i, convertedBaitModels[i])) #TODO
 
     # STEP3 : run Clustal on the file and create an output file
     IN, OUT = path, path+".out"
@@ -205,6 +210,9 @@ for bait, data in baits.items():
                 sequences[idx] = line
 
     candidate = "_"
+    scoreBM = []
+    for i in range(lenBaitModels):
+        scoreBM.append(computeScoreBM(baitModelsStats[i]))
     while candidate not in stopAA and keepgoing:
         # Elect candidate
         candidate = "_"
@@ -222,8 +230,8 @@ for bait, data in baits.items():
                 if c not in "_[]":
                     if c not in candidates:
                         candidates[c], scoresB[c] = 0, 0
-                    candidates[c] += 0.01 if c == '-' else 1 #TODO
-                    scoresB[c] += scoreBM(baitModelsStats[i])
+                    candidates[c] += 0.15 if c == '-' else 1
+                    scoresB[c] += scoreBM[i]
 
         # Determine who is the elected candidate
         mostpresent, doubt = 0, True
@@ -284,6 +292,7 @@ for bait, data in baits.items():
         if isequal:
             resultsPerBM[lenBaitModels][0] += 1
             results[0:3] = fillResults(results[0:3], inBM, wholebaitmodel)
+            resultsPercent[0:3] = fillResults(resultsPercent[0:3], inBM, wholebaitmodel)
         else:
             resultsPerBM[lenBaitModels][1] += 1
             if numMatch >= 21:
@@ -335,10 +344,6 @@ for bait, data in baits.items():
         else:
             resultsPerBM[lenBaitModels][7] += 1
 
-    # TODO
-    # if iteration > 10:
-    #     break
-
     # Data for output.csv file
     csvrow.append(fusedBait)
     csvrow.append(str(isequal))
@@ -363,7 +368,7 @@ else:
 # ---------------------------------------------
 
 # ------------------- PLOTS -------------------
-options = " (sans simplification)" if not cansimplify else ""
+options = " (sans simplification)" if not simplification else ""
 
 if solvedbaits != 0:
     lengthBaitModels, respBM = tuple(zip(*[t[0] for t in sorted(zip(resultsPerBM.items()))]))

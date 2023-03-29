@@ -52,15 +52,13 @@ def compare(bait, fusedBait):
     """
     A, B = bait, fusedBait
     lenA, lenB = len(A), len(B)
-    n = (lenA if lenA > lenB else lenB) + 1
+    r, n = 0, (lenA if lenA > lenB else lenB) + 1
     LCCS = [[0]*n for _ in range(n)]
 
     for _ in range(lenA, n-1):
         A += '-'
     for _ in range(lenB, n-1):
         B += '-'
-
-    r, x, y = -1, -1, -1
 
     for i in range(1, lenA+1):
         for j in range(1, lenB+1):
@@ -70,13 +68,11 @@ def compare(bait, fusedBait):
                 LCCS[i][j] = 0
 
             if LCCS[i][j] > r:
-                x, y = i, j
                 r = LCCS[i][j]
 
-    r = 0 if r == -1 else r
     return (A == B), r
 
-def scoreBM(stats):
+def computeScoreBM(stats):
     """
     Compute score for a baitModel
     @params:
@@ -312,23 +308,55 @@ def readMassTable(fname):
             numrow += 1
     return massTable
 
-def printStats(verbose, trace, tolerance, sensitivity, numBait, nBait, nBaitOne,
-               massDispCount, minCount, maxCount, moyCount, totalInBM):
+def printStats(numBait, nBait, nBaitOne, massDispCount, minCount, maxCount, moyCount, totalInBM):
     """
     Print file statistics
     """
-    print("Verbose                                  : ", verbose)
-    print("Trace                                    : ", trace, " Da")
-    print("Tolerance                                : ", tolerance, " Da")
-    print("Sensitivity                              : ", sensitivity, " Da")
-    print("# of baits                               : ", numBait)
-    print("# of baits in stats file                 : ", nBait)
-    print("# of baits with at least two bait models : ", nBaitOne)
-    print("# of baits with mass dispersion > 1.0 Da : ", massDispCount)
-    print("Min # of baitModels in stats file        : ", minCount)
-    print("Max # of baitModels in stats file        : ", maxCount)
-    print("Avg # of baitModels in stats file        : ", truncate(moyCount, 2))
-    print("# of bait sequence incl. in bait models  : ", totalInBM)
+    print("--------------- FILE STATS ---------------")
+    print("# of baits                               :", numBait)
+    print("# of baits in stats file                 :", nBait)
+    print("# of baits with at least two bait models :", nBaitOne)
+    print("# of baits with mass dispersion > 1.0 Da :", massDispCount)
+    print("Min # of bait models in stats file       :", minCount)
+    print("Max # of bait models in stats file       :", maxCount)
+    print("Avg # of bait models in stats file       :", truncate(moyCount, 2))
+    print("# of bait sequence incl. in bait models  :", totalInBM)
+    print()
+
+def printParameters(verbose, trace, tolerance, sensitivity, simplification,
+                    simplifyBothWays, ignoreDuplicateBM, minNumBaits, maxNumBaits,
+                    useMUSCLE=None, valid=None, probation=None, invalid=None,
+                    secondpass=None, concatenation=None, replaceDashByMass=None):
+    """
+    Print method parameters
+    """
+    print("----------- METHOD PARAMETERS ------------")
+    print("Verbose                                  :", verbose)
+    print("Trace                                    :", trace, "Da")
+    print("Tolerance                                :", tolerance, "Da")
+    print("Sensitivity                              :", sensitivity, "Da")
+    if (valid, probation, invalid) != (None, None, None):
+        print("Bait model weights                       : {} (valid), {} (probation), \
+{} (invalid)".format(valid, probation, invalid))
+    if secondpass != None:
+        print("Second pass                              :", secondpass)
+    if concatenation != None:
+        cond = concatenation and secondpass
+        print("Concatenation                            :", cond)
+    if simplification != None:
+        print("Simplify bait models                     :", simplification)
+    if simplifyBothWays != None:
+        cond = simplification and simplifyBothWays and secondpass
+        print("Simplify on second pass                  :", cond)
+    if replaceDashByMass != None:
+        print("Replace output sequence dash by mass     :", replaceDashByMass)
+    if ignoreDuplicateBM != None:
+        print("Ignore duplicate bait models             :", ignoreDuplicateBM)
+    print("Loaded baits with at least               :", minNumBaits, "bait models")
+    print("Loaded baits with at most                :", maxNumBaits, "bait models")
+    if useMUSCLE != None:
+        MSA = "MUSCLE" if useMUSCLE else "ClustalW"
+        print("MSA algorithm used                       :", MSA)
 
 def getResultsTables(results, resultsPercent, fulltable=False):
     """
@@ -489,12 +517,9 @@ def writeResults(fname, csvheader, csvdata):
     """
     # open file in write mode
     with open(fname, 'w', encoding='UTF8', newline='') as f:
-        # create csv writer
-        writer = csv.writer(f)
-        # write the header
-        writer.writerow(csvheader)
-        # write rows
-        writer.writerows(csvdata)
+        writer = csv.writer(f) # create csv writer
+        writer.writerow(csvheader) # write the header
+        writer.writerows(csvdata) # write rows
 
 def plotResults(options, lengthBaitModels, respBM):
     """
