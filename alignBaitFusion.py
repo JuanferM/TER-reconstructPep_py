@@ -28,7 +28,7 @@ simplifyBothWays = True
 ignoreDuplicateBM = False
 
 # Settings about solvers
-useMUSCLE = False
+useMUSCLE = True
 clustalopt = "-QUICKTREE -MATRIX=ID -GAPOPEN=5 -GAPEXT=1 -NOHGAP \
 -NOWEIGHTS -CLUSTERING=UPGMA"
 muscleopt = ""

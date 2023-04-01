@@ -268,6 +268,7 @@ def readStatsFile(fname, minNumBaits=0, maxNumBaits=float('inf'),
             nBaitModel = int(nBaitModel)
             baitStats = (float(meanMass), float(sdMass))
             baitModels, baitModelsStats = [], []
+            allsame, idx = True, 0
             offset = 0
             for i in range(i+1, i+1+nBaitModel):
                 baitModel, SPC, SGscore, baitMass, LS, nMass, GSC, GMC, GUM = rows[i].split()
@@ -275,12 +276,15 @@ def readStatsFile(fname, minNumBaits=0, maxNumBaits=float('inf'),
                     offset += 1
                     continue
                 baitModels.append(baitModel)
+                if idx > 0 and allsame:
+                    allsame = (baitModels[idx] == baitModels[0])
                 st = [int(SPC), float(SGscore), float(baitMass)]
                 st = st + list(map(int, [LS, nMass, GSC, GMC, GUM]))
                 baitModelsStats.append(st)
+                idx += 1
             nBaitModel -= offset
             i += 1
-            if minNumBaits <= nBaitModel <= maxNumBaits:
+            if minNumBaits <= nBaitModel <= maxNumBaits and not allsame:
                 numBait += 1
                 totalInBM += 1 if bait in baitModels else 0
                 baits[bait] = (baitModels, baitStats, baitModelsStats)
@@ -313,7 +317,7 @@ def printStats(numBait, nBait, nBaitOne, massDispCount, minCount, maxCount, moyC
     Print file statistics
     """
     print("--------------- FILE STATS ---------------")
-    print("# of baits                               :", numBait)
+    print("# of baits selected                      :", numBait)
     print("# of baits in stats file                 :", nBait)
     print("# of baits with at least two bait models :", nBaitOne)
     print("# of baits with mass dispersion > 1.0 Da :", massDispCount)

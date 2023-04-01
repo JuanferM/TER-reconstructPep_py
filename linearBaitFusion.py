@@ -100,7 +100,6 @@ printParameters(verbose, trace, tolerance, sensitivity, simplification,
 
 # ------------ FUSION BAIT MODELS -------------
 iteration = 1 # Iteration counter to print progress bar
-remMassIsGSC = 0 # Number of remaining mass equal to a single combination of AAs
 for bait, data in baits.items():
     csvrow = [bait]
     wholebaitmodel = False
@@ -309,7 +308,6 @@ for bait, data in baits.items():
                             allSame = (firstChar == combi[i])
                             i += 1
                         c = combi if allSame else c
-                        remMassIsGSC += 1
 
                 fusedBait = befRevBait + c + fusedBait[::-1]
             else:
@@ -424,7 +422,6 @@ if solvedbaits != 0:
     writeResults("output_linear.csv", csvheader, csvdata)
 else:
     print("\nNO SOLUTION!")
-print(remMassIsGSC)
 # ---------------------------------------------
 
 # ------------------- PLOTS -------------------
