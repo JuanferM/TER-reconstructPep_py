@@ -24,11 +24,10 @@ sensitivity = 0.01
 
 # Method options
 simplification = True
-simplifyBothWays = True
 ignoreDuplicateBM = False
 
 # Settings about solvers
-useMUSCLE = True
+useMUSCLE = False
 clustalopt = "-QUICKTREE -MATRIX=ID -GAPOPEN=5 -GAPEXT=1 -NOHGAP \
 -NOWEIGHTS -CLUSTERING=UPGMA"
 muscleopt = ""
@@ -40,7 +39,6 @@ maxNumBaits = float('inf')
 # ---------------------------------------------
 
 # ---------- VARIABLES DEFINITION -------------
-mafftcmd = "./mafft"
 musclecmd = "./muscle3.8"
 clustalcmd = "./clustalw2 -ALIGN -QUIET -OUTPUT=FASTA"
 results = [0] * 27
@@ -99,7 +97,7 @@ printStats(numBait, totalBait, totalBaitWithOneBM, numBaitWithMassDispersion, mi
 # ---------------------------------------------
 
 # ---------- PRINT PARAMETERS ------------
-printParameters(verbose, trace, tolerance, sensitivity, simplification, simplifyBothWays,
+printParameters(verbose, trace, tolerance, sensitivity, simplification, None,
                 ignoreDuplicateBM, minNumBaits, maxNumBaits, useMUSCLE)
 # ---------------------------------------------
 
