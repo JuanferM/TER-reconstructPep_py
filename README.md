@@ -92,6 +92,19 @@ The method `alignBaitFusion.py` have the following additinal parameters :
 -GAPOPEN=5 -GAPEXT=1 -NOHGAP -NOWEIGHTS -CLUSTERING=UPGMA" by default)
 * `muscleopt`  : String. Options to provide to MUSCLE (Empty by default).
 
+# How to run
+
+Use the command :
+`python3 <method> <path_to_stats_file> <path_to_mass_table>`
+
+Where :
+* `<method>` is either `linearBaitFusion.py` or `alignBaitFusion.py`.
+* `<path_to_stats_file>` is the path to the stats file
+* `<path_to_mass_table>` is the path to the mass table
+
+For example :
+`python3 linearBaitFusion.py instances/stats/stats_bait10000.txt mass\ tables/mass_table_8.csv`
+
 # Outputs
 
 The methods output four plots and a csv file containing all baits with the
