@@ -1,5 +1,5 @@
 import csv
-from math import exp, trunc, ceil
+from math import exp, trunc
 from rich import box
 from rich.table import Table
 from rich.console import Console

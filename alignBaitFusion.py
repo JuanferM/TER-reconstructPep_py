@@ -5,6 +5,16 @@ from functions import *
 import subprocess as sbp
 from math import trunc, ceil
 
+# -------------- DESCRIPTION ------------------
+# This script takes a stats file and a mass table as
+# input and outputs a csv file containing the
+# reconstructed baits.
+# ---------------------------------------------
+
+# -------------- USAGE ------------------------
+# python3 alignBaitFusion.py <stats file> <mass table>
+# ---------------------------------------------
+
 # ------------ ARGUMENTS CHECK ----------------
 if len(sys.argv) != 3:
     raise FileNotFoundError('File not found. Please provide the stats filename\

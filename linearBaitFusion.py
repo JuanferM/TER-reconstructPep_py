@@ -1,7 +1,15 @@
-import os
 import sys
 from functions import *
-from math import exp, trunc
+
+# -------------- DESCRIPTION ------------------
+# This script takes a stats file and a mass table as
+# input and outputs a csv file containing the
+# reconstructed baits.
+# ---------------------------------------------
+
+# -------------- USAGE ------------------------
+# python3 linearBaitFusion.py <stats file> <mass table>
+# ---------------------------------------------
 
 # ------------ ARGUMENTS CHECK ----------------
 if len(sys.argv) != 3:
