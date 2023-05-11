@@ -10,6 +10,7 @@ pd.set_option('display.max_columns', None)
 baits = {}
 infilename = sys.argv[1]
 baitPrintLength = 30
+nPSM = 0
 labCol = ["SPC", "SGS", "mass (Da)", "LS", "# G", "# GSC", "# GMC", "# GUM"]
 nBait, nBaitOne, massDispCount, minCount, maxCount, moyCount = 0, 0, 0, 0, 0, 0
 
@@ -35,11 +36,13 @@ with open(infilename, 'r') as file:
             st = st + list(map(int, [LS, nMass, GSC, GMC, GUM]))
             baitModelsStats.append(st)
         i += 1
+        nPSM += len(baitModels)
         baits[bait] = (baitModels, baitStats, baitModelsStats)
 print("Done\n")
 # ---------------------------------------------
 
 # ------------ PRINTING STATS FILE ------------
+print("PSM = Peptide-Spectrum Matches")
 print("SPC = Shared Peak Count")
 print("SGS = SpecGlob Score")
 print("LS  = Longest Stretch")
@@ -48,6 +51,7 @@ print("GSC = Gaps with mass corresponding to a Single Combination")
 print("GMC = Gaps with mass corresponding to Multiple Combinations")
 print("GUM = Gaps with Unknown Mass\n")
 
+print("Number of PSM                                    : ", nPSM)
 print("Number of baits                                  : ", nBait)
 print("Number of baits with at least one bait model     : ", nBaitOne)
 print("Number of baits with mass dispersion > 1.0 Da    : ", massDispCount)
