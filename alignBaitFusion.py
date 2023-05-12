@@ -29,7 +29,7 @@ fulltable = True
 
 # Error margins and baitModels weights
 trace = 1
-tolerance = 0.02
+tolerance = 0.04
 sensitivity = 0.01
 
 # Method options
