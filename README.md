@@ -1,7 +1,8 @@
 # TER-reconstructPep_py
 Algorithms to reconstruct peptide sequences in Python
-
-![](method1.gif)
+<p align="center">
+  <img src="method1.gif">
+</p>
 
 # Goal
 
