@@ -1,7 +1,6 @@
 import csv
 import sys
 import math
-from ctypes import ArgumentError
 
 if len(sys.argv) < 3 and len(sys.argv) > 5:
     raise FileNotFoundError('File not found. Please provide the csv filename\

@@ -1,6 +1,5 @@
 import sys
 import pandas as pd
-from ctypes import ArgumentError
 
 if len(sys.argv) != 2:
     raise FileNotFoundError('File not found. Please provide the stats file name')

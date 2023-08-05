@@ -1,0 +1,14 @@
+results
+debriefs
+__pycache__
+method1.gif
+version\ C++
+instances/baitALL.txt
+# instances/stats/stats_baitALL.txt
+instances/csv/specOMS_test_for_glob_all_of_them_output_baitModel.csv
+**/.~lock.*
+**/.tex
+**/.bib
+**/.log
+**/.aux
+**/.synctex.gz
